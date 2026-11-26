@@ -1,20 +1,26 @@
-"use client";
+"use client"
 
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuthStore } from "@/stores/auth.store";
+import { useAuthStore, getDefaultRouteForUser } from "@/stores/auth.store";
 import { UNAUTHORIZED_EVENT } from "@/lib/token";
+import type { UserRole } from "@/types/auth";
 import FullPageLoader from "@/components/ui/FullPageLoader";
 
+interface AuthGuardProps {
+  children: ReactNode;
+  requiredRole?: UserRole;
+}
+
 /**
- * Wrap pages that need a logged-in user.
- * Token lives in localStorage, so the check has to run in the browser
- * (a server-side proxy cannot read it).
+ * Protects authenticated routes in the browser and enforces role boundaries
+ * (e.g., preventing standard 'user' accounts from accessing '/admin/*').
  */
-export default function AuthGuard({ children }: { children: ReactNode }) {
+export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const user = useAuthStore((s) => s.user);
   const status = useAuthStore((s) => s.status);
   const signedOut = useAuthStore((s) => s.signedOut);
   const initialize = useAuthStore((s) => s.initialize);
@@ -24,22 +30,47 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
     initialize();
   }, [initialize]);
 
-  // The API client fires this when the server says the session is invalid/expired
   useEffect(() => {
-    window.addEventListener(UNAUTHORIZED_EVENT, clearAuth);
-    return () => window.removeEventListener(UNAUTHORIZED_EVENT, clearAuth);
+    const handleUnauthorized = () => {
+      clearAuth("Your session has expired. Please sign in again.");
+    };
+
+    window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () =>
+      window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
   }, [clearAuth]);
 
   useEffect(() => {
-    if (status !== "unauthenticated") return;
+    if (status === "unauthenticated") {
+      router.replace(
+        signedOut ? "/login" : `/login?next=${encodeURIComponent(pathname)}`
+      );
+      return;
+    }
 
-    router.replace(
-      signedOut ? "/login" : `/login?next=${encodeURIComponent(pathname)}`
-    );
-  }, [status, signedOut, pathname, router]);
+    if (status === "authenticated" && user) {
+      if (user.account_status && user.account_status !== "active") {
+        clearAuth(
+          user.account_status === "suspended"
+            ? "Your account has been suspended."
+            : "Your account is inactive."
+        );
+        router.replace("/login");
+        return;
+      }
 
-  if (status !== "authenticated") {
-    return <FullPageLoader label="Checking your session..." />;
+      if (requiredRole && user.role !== requiredRole) {
+        router.replace(getDefaultRouteForUser(user));
+      }
+    }
+  }, [status, user, signedOut, pathname, requiredRole, router, clearAuth]);
+
+  if (status === "idle" || status === "loading" || status === "unauthenticated") {
+    return <FullPageLoader label="VERIFYING_SESSION..." />;
+  }
+
+  if (!user || (requiredRole && user.role !== requiredRole)) {
+    return <FullPageLoader label="CHECKING_PERMISSIONS..." />;
   }
 
   return <>{children}</>;

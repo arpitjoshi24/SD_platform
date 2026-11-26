@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  email: z.email("Enter a valid email address"),
+  email: z.string().trim().email("Enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -12,12 +12,13 @@ export const registerSchema = z
       .trim()
       .min(3, "Name must be at least 3 characters")
       .max(100, "Name is too long"),
-    email: z.email("Enter a valid email address"),
+    email: z.string().trim().email("Enter a valid email address"),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
       .max(100, "Password is too long"),
     confirmPassword: z.string().min(1, "Please confirm your password"),
+    timezone: z.string().trim().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",

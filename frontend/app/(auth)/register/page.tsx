@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { loginUser, registerUser } from "@/services/auth.service";
+import { registerUser } from "@/services/auth.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { getErrorMessage } from "@/lib/errors";
 import {
@@ -15,17 +15,19 @@ import {
 } from "@/lib/validation/auth";
 import PasswordInput from "@/components/ui/PasswordInput";
 import Spinner from "@/components/ui/Spinner";
+import ErrorBanner from "@/components/ui/ErrorBanner";
 
 const inputClass =
-  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white outline-none transition placeholder:text-gray-500 focus:border-blue-500";
+  "w-full rounded-[2px] border border-[#1e222b] bg-[#090a0d] px-4 py-3 text-sm text-gray-100 outline-none transition placeholder:text-gray-600 focus:border-cyan-400";
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const searchParams = useSearchParams();
 
   const next = searchParams.get("next");
-  const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
+  const loginHref = next
+    ? `/login?next=${encodeURIComponent(next)}`
+    : "/login";
 
   const [serverError, setServerError] = useState("");
 
@@ -41,92 +43,100 @@ export default function RegisterPage() {
     setServerError("");
 
     try {
-      await registerUser({
+      const detectedTimezone =
+        typeof Intl !== "undefined"
+          ? Intl.DateTimeFormat().resolvedOptions().timeZone
+          : undefined;
+
+      const authData = await registerUser({
         full_name: values.full_name,
         email: values.email,
         password: values.password,
+        timezone: detectedTimezone,
       });
+
+      setAuth(authData.user, authData.token);
     } catch (error) {
-      setServerError(getErrorMessage(error, "Registration failed. Please try again."));
-      return;
-    }
-
-    // Account created -> sign the user straight in.
-    try {
-      const response = await loginUser({
-        email: values.email,
-        password: values.password,
-      });
-
-      setAuth(response.data.user, response.data.token); // GuestGuard redirects
-    } catch {
-      router.replace(loginHref); // account exists, just ask them to log in
+      setServerError(
+        getErrorMessage(error, "Unable to create account. Please try again.")
+      );
     }
   };
 
   return (
     <div>
-      <h1 className="text-3xl font-bold">Create your account</h1>
-
-      <p className="mt-2 text-gray-400">
-        Start designing real systems in minutes.
+      <p className="font-mono text-[10px] uppercase tracking-widest text-emerald-400">
+        [02 // NEW_OPERATOR_REGISTRATION]
       </p>
 
-      {serverError && (
-        <div
-          role="alert"
-          className="mt-6 rounded-lg border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400"
-        >
-          {serverError}{" "}
-          {serverError.toLowerCase().includes("already exists") && (
-            <Link href={loginHref} className="font-medium underline">
-              Log in instead
-            </Link>
-          )}
-        </div>
-      )}
+      <h1 className="mt-2 text-2xl font-bold uppercase tracking-tight text-white">
+        Create Account
+      </h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-8 space-y-5">
+      <p className="mt-1.5 text-xs leading-5 text-gray-400">
+        Register a standard user account to start building and evaluating system architectures.
+      </p>
+
+      {serverError && <ErrorBanner message={serverError} className="mt-5" />}
+
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        className="mt-6 space-y-4"
+      >
         <div>
-          <label htmlFor="full_name" className="mb-2 block text-sm font-medium text-gray-300">
-            Full name
+          <label
+            htmlFor="full_name"
+            className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-gray-300"
+          >
+            Full Name
           </label>
 
           <input
             id="full_name"
             type="text"
             autoComplete="name"
-            placeholder="Your name"
+            placeholder="Your full name"
             className={inputClass}
             {...register("full_name")}
           />
 
           {errors.full_name && (
-            <p className="mt-1.5 text-sm text-red-400">{errors.full_name.message}</p>
+            <p className="mt-1.5 font-mono text-xs text-rose-400">
+              {errors.full_name.message}
+            </p>
           )}
         </div>
 
         <div>
-          <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-300">
-            Email
+          <label
+            htmlFor="email"
+            className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-gray-300"
+          >
+            Email Address
           </label>
 
           <input
             id="email"
             type="email"
             autoComplete="email"
-            placeholder="you@example.com"
+            placeholder="engineer@archmentor.dev"
             className={inputClass}
             {...register("email")}
           />
 
           {errors.email && (
-            <p className="mt-1.5 text-sm text-red-400">{errors.email.message}</p>
+            <p className="mt-1.5 font-mono text-xs text-rose-400">
+              {errors.email.message}
+            </p>
           )}
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-300">
+          <label
+            htmlFor="password"
+            className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-gray-300"
+          >
             Password
           </label>
 
@@ -138,41 +148,51 @@ export default function RegisterPage() {
           />
 
           {errors.password && (
-            <p className="mt-1.5 text-sm text-red-400">{errors.password.message}</p>
+            <p className="mt-1.5 font-mono text-xs text-rose-400">
+              {errors.password.message}
+            </p>
           )}
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-gray-300">
-            Confirm password
+          <label
+            htmlFor="confirmPassword"
+            className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-gray-300"
+          >
+            Confirm Password
           </label>
 
           <PasswordInput
             id="confirmPassword"
             autoComplete="new-password"
-            placeholder="Repeat your password"
+            placeholder="Re-enter your password"
             {...register("confirmPassword")}
           />
 
           {errors.confirmPassword && (
-            <p className="mt-1.5 text-sm text-red-400">{errors.confirmPassword.message}</p>
+            <p className="mt-1.5 font-mono text-xs text-rose-400">
+              {errors.confirmPassword.message}
+            </p>
           )}
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-3 font-semibold text-black transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn-spectrum mt-2 flex w-full items-center justify-center gap-2 px-4 py-3 font-mono text-xs uppercase tracking-wider transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting && <Spinner />}
-          {isSubmitting ? "Creating account..." : "Create account"}
+          {isSubmitting && <Spinner size={15} />}
+          <span>{isSubmitting ? "PROVISIONING..." : "CREATE_ACCOUNT →"}</span>
         </button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-gray-400">
-        Already have an account?{" "}
-        <Link href={loginHref} className="font-medium text-white underline underline-offset-4 hover:text-blue-400">
-          Log in
+      <p className="mt-6 border-t border-[#1e222b] pt-5 text-center font-mono text-xs text-gray-400">
+        Already registered?{" "}
+        <Link
+          href={loginHref}
+          className="font-semibold text-cyan-400 underline underline-offset-4 hover:text-cyan-300"
+        >
+          Sign In
         </Link>
       </p>
     </div>

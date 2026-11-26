@@ -1,7 +1,8 @@
 const SEVERITY = Object.freeze({
-  ERROR: "error", // design is wrong / incomplete -> blocks "passed"
-  WARNING: "warning", // works, but a weakness
-  INFO: "info", // educational note, no penalty
+  INFO: "info",
+  WARNING: "warning",
+  ERROR: "error",
+  CRITICAL: "critical",
 });
 
 const CATEGORY = Object.freeze({
@@ -10,13 +11,31 @@ const CATEGORY = Object.freeze({
   REQUIREMENT: "requirement",
   RELIABILITY: "reliability",
   PERFORMANCE: "performance",
+  SECURITY: "security",
+  DATA_INTEGRITY: "data_integrity",
 });
 
-// Default score penalty per issue (a rule can override it)
+const RULE_TYPE = Object.freeze({
+  GENERIC: "generic",
+  CHALLENGE_SPECIFIC: "challenge_specific",
+});
+
+const EXECUTION_MODE = Object.freeze({
+  MANDATORY: "mandatory",
+  OPTIONAL: "optional",
+});
+
 const DEFAULT_PENALTY = Object.freeze({
-  error: 15,
-  warning: 5,
   info: 0,
+  warning: 5,
+  error: 15,
+  critical: 25,
 });
 
-module.exports = { SEVERITY, CATEGORY, DEFAULT_PENALTY };
+module.exports = {
+  SEVERITY,
+  CATEGORY,
+  RULE_TYPE,
+  EXECUTION_MODE,
+  DEFAULT_PENALTY,
+};

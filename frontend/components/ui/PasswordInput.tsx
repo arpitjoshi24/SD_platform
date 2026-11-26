@@ -14,7 +14,7 @@ const PasswordInput = forwardRef<
       <input
         ref={ref}
         type={visible ? "text" : "password"}
-        className={`w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 pr-12 text-white outline-none transition placeholder:text-gray-500 focus:border-blue-500 ${className}`}
+        className={`w-full rounded-[2px] border border-[#1e222b] bg-[#0e1015] px-4 py-3 pr-12 text-sm text-gray-100 outline-none transition placeholder:text-gray-500 focus:border-cyan-400 ${className}`}
         {...props}
       />
 
@@ -22,7 +22,7 @@ const PasswordInput = forwardRef<
         type="button"
         onClick={() => setVisible((v) => !v)}
         aria-label={visible ? "Hide password" : "Show password"}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-gray-300"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-gray-200"
       >
         {visible ? <EyeOff size={18} /> : <Eye size={18} />}
       </button>

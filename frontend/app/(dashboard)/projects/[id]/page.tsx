@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// A project is edited in the workspace, so /projects/:id just forwards there.
+// A project is edited in the workspace, so /projects/:id forwards directly there.
 export default async function ProjectRedirect({
   params,
 }: {

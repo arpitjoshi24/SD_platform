@@ -22,13 +22,16 @@ api.interceptors.request.use((config) => {
 });
 
 // Expired / invalid session: drop the token and tell the app.
-// (A wrong password on /auth/login also returns 401 - that must NOT log anyone out.)
+// A wrong password on /auth/login or /auth/register must NOT dispatch unauthorized.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const isAuthAttempt = error.config?.url?.includes("/auth/login");
+    const url: string = error.config?.url ?? "";
+    const isAuthAttempt =
+      url.includes("/auth/login") || url.includes("/auth/register");
 
     if (
+      typeof window !== "undefined" &&
       error.response?.status === 401 &&
       !isAuthAttempt &&
       tokenStorage.get()

@@ -5,7 +5,7 @@ import Sidebar from "@/components/layout/Sidebar";
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <AuthGuard>
-      <div className="flex min-h-screen bg-gray-950 text-white">
+      <div className="flex min-h-screen bg-[#090a0d] text-gray-100">
         <Sidebar />
 
         {/* pt-14 leaves room for the mobile top bar */}

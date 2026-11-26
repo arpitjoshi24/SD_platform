@@ -6,18 +6,35 @@ const {
   createProjectSchema,
   updateProjectSchema,
 } = require("../validators/project.validator");
+const { listAttemptsQuerySchema } = require("../validators/attempt.validator");
 const {
   createProject,
   getProjects,
   getProject,
+  getProjectSummaryController,
+  getProjectHistoryController,
   updateProjectController,
+  deleteProjectController,
 } = require("../controllers/project.controller");
 
 const router = express.Router();
 
 router.get("/", authMiddleware, getProjects);
-router.get("/:id", authMiddleware, getProject);
 router.post("/", authMiddleware, validate(createProjectSchema), createProject);
-router.put("/:id", authMiddleware, validate(updateProjectSchema), updateProjectController);
+router.get("/:id", authMiddleware, getProject);
+router.get("/:id/summary", authMiddleware, getProjectSummaryController);
+router.get(
+  "/:id/history",
+  authMiddleware,
+  validate({ query: listAttemptsQuerySchema }),
+  getProjectHistoryController
+);
+router.put(
+  "/:id",
+  authMiddleware,
+  validate(updateProjectSchema),
+  updateProjectController
+);
+router.delete("/:id", authMiddleware, deleteProjectController);
 
 module.exports = router;

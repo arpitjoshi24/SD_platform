@@ -8,8 +8,9 @@ export default function ErrorBanner({
   return (
     <div
       role="alert"
-      className={`rounded-lg border border-red-800 bg-red-950/40 p-4 text-sm text-red-400 ${className}`}
+      className={`rounded-[2px] border border-rose-500/40 bg-rose-950/30 px-4 py-3 font-mono text-xs text-rose-300 ${className}`}
     >
+      <span className="mr-2 font-semibold text-rose-400">[ERR]</span>
       {message}
     </div>
   );

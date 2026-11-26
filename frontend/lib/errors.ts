@@ -1,17 +1,26 @@
 import axios from "axios";
+import type { ApiErrorResponse } from "@/types/api";
 
 /**
  * Turns any thrown value into a message that is safe to show to a user.
- * Uses the backend's `message` when there is one.
+ * Uses the backend's `message` (and field details when available).
  */
 export function getErrorMessage(
   error: unknown,
   fallback = "Something went wrong. Please try again."
 ): string {
-  if (axios.isAxiosError(error)) {
-    const serverMessage = error.response?.data?.message;
+  if (axios.isAxiosError<ApiErrorResponse>(error)) {
+    const data = error.response?.data;
+    const serverMessage = data?.message;
 
-    if (typeof serverMessage === "string" && serverMessage) {
+    if (Array.isArray(data?.details) && data.details.length > 0) {
+      const firstDetail = data.details[0]?.message;
+      if (firstDetail) {
+        return serverMessage ? `${serverMessage}: ${firstDetail}` : firstDetail;
+      }
+    }
+
+    if (typeof serverMessage === "string" && serverMessage.trim()) {
       return serverMessage;
     }
 

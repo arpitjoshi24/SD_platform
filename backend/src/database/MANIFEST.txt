@@ -1,0 +1,7 @@
+ArchMentor AI Database Package v1.0
+
+schema.sql
+README.md
+migrations/001_initial_schema.sql
+seeds/rules.seed.sql
+seeds/challenges.seed.sql

@@ -9,21 +9,19 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { loginUser } from "@/services/auth.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { getErrorMessage } from "@/lib/errors";
-import {
-  loginSchema,
-  type LoginFormValues,
-} from "@/lib/validation/auth";
+import { loginSchema, type LoginFormValues } from "@/lib/validation/auth";
 import PasswordInput from "@/components/ui/PasswordInput";
 import Spinner from "@/components/ui/Spinner";
+import ErrorBanner from "@/components/ui/ErrorBanner";
 
 const inputClass =
-  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white outline-none transition placeholder:text-gray-500 focus:border-blue-500";
+  "w-full rounded-[2px] border border-[#1e222b] bg-[#090a0d] px-4 py-3 text-sm text-gray-100 outline-none transition placeholder:text-gray-600 focus:border-cyan-400";
 
 export default function LoginPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
+  const authNotice = useAuthStore((s) => s.authNotice);
   const searchParams = useSearchParams();
 
-  // Keep ?next= when switching between login and register
   const next = searchParams.get("next");
   const registerHref = next
     ? `/register?next=${encodeURIComponent(next)}`
@@ -43,83 +41,112 @@ export default function LoginPage() {
     setServerError("");
 
     try {
-      const response = await loginUser(values);
+      const authData = await loginUser(values);
 
-      // GuestGuard sees the new session and redirects (to ?next= or /challenges)
-      setAuth(response.data.user, response.data.token);
+      if (authData.user.account_status && authData.user.account_status !== "active") {
+        setServerError(
+          authData.user.account_status === "suspended"
+            ? "Your account has been suspended. Contact an administrator."
+            : "Your account is not active."
+        );
+        return;
+      }
+
+      // GuestGuard redirects based on role (/admin/dashboard vs /challenges or ?next=)
+      setAuth(authData.user, authData.token);
     } catch (error) {
-      setServerError(getErrorMessage(error, "Unable to sign in. Please try again."));
+      setServerError(
+        getErrorMessage(error, "Unable to sign in. Please check your credentials.")
+      );
     }
   };
 
+  const displayedError = serverError || authNotice || "";
+
   return (
     <div>
-      <h1 className="text-3xl font-bold">Welcome back</h1>
-
-      <p className="mt-2 text-gray-400">
-        Log in to continue your system design practice.
+      <p className="font-mono text-[10px] uppercase tracking-widest text-cyan-400">
+        [01 // SESSION_AUTHENTICATION]
       </p>
 
-      {serverError && (
-        <div
-          role="alert"
-          className="mt-6 rounded-lg border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400"
-        >
-          {serverError}
-        </div>
-      )}
+      <h1 className="mt-2 text-2xl font-bold uppercase tracking-tight text-white">
+        Sign In
+      </h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-8 space-y-5">
+      <p className="mt-1.5 text-xs leading-5 text-gray-400">
+        Authenticate to access system design challenges, sandboxes, and saved attempts.
+      </p>
+
+      {displayedError && <ErrorBanner message={displayedError} className="mt-5" />}
+
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        className="mt-6 space-y-4"
+      >
         <div>
-          <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-300">
-            Email
+          <label
+            htmlFor="email"
+            className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-gray-300"
+          >
+            Email Address
           </label>
 
           <input
             id="email"
             type="email"
             autoComplete="email"
-            placeholder="you@example.com"
+            placeholder="engineer@archmentor.dev"
             className={inputClass}
             {...register("email")}
           />
 
           {errors.email && (
-            <p className="mt-1.5 text-sm text-red-400">{errors.email.message}</p>
+            <p className="mt-1.5 font-mono text-xs text-rose-400">
+              {errors.email.message}
+            </p>
           )}
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-300">
+          <label
+            htmlFor="password"
+            className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-gray-300"
+          >
             Password
           </label>
 
           <PasswordInput
             id="password"
             autoComplete="current-password"
-            placeholder="Your password"
+            placeholder="Enter your password"
             {...register("password")}
           />
 
           {errors.password && (
-            <p className="mt-1.5 text-sm text-red-400">{errors.password.message}</p>
+            <p className="mt-1.5 font-mono text-xs text-rose-400">
+              {errors.password.message}
+            </p>
           )}
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-3 font-semibold text-black transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn-spectrum mt-2 flex w-full items-center justify-center gap-2 px-4 py-3 font-mono text-xs uppercase tracking-wider transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting && <Spinner />}
-          {isSubmitting ? "Signing in..." : "Log in"}
+          {isSubmitting && <Spinner size={15} />}
+          <span>{isSubmitting ? "AUTHENTICATING..." : "SIGN_IN →"}</span>
         </button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-gray-400">
-        New to ArchMentor?{" "}
-        <Link href={registerHref} className="font-medium text-white underline underline-offset-4 hover:text-blue-400">
-          Create an account
+      <p className="mt-6 border-t border-[#1e222b] pt-5 text-center font-mono text-xs text-gray-400">
+        Need an account?{" "}
+        <Link
+          href={registerHref}
+          className="font-semibold text-cyan-400 underline underline-offset-4 hover:text-cyan-300"
+        >
+          Create User Account
         </Link>
       </p>
     </div>

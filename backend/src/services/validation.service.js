@@ -1,55 +1,59 @@
 const AppError = require("../utils/AppError");
-const { calculateScore, getGrade } = require("../utils/score");
+const { calculateScore, getGrade, isPassingScore } = require("../utils/score");
+const { EVALUATION_ENGINE_VERSION } = require("../utils/constants");
 const { SEVERITY } = require("../types/ruleTypes");
-const { normalizeNodes, normalizeEdges } = require("../types/nodeTypes");
+const { normalizeArchitectureSnapshot } = require("../types/nodeTypes");
 const { evaluationConfigSchema } = require("../validators/challenge.validator");
 const { buildGraph } = require("../rules/graph");
 const { createIssue } = require("../rules/issue");
-const genericRules = require("../rules/genericRules");
-const challengeRules = require("../rules/challengeRules");
-const { findProjectById } = require("../repositories/project.repository");
-const {
-  findChallengeEvaluationConfig,
-} = require("../repositories/challenge.repository");
+const { executeRule, hasRuleHandler } = require("../rules/ruleRegistry");
+const { findProjectById, findProjectChallengeVersion } = require("../repositories/project.repository");
+const { resolveApplicableRulesForProject } = require("./rule.service");
 
-const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 };
+const SEVERITY_ORDER = { critical: -1, error: 0, warning: 1, info: 2 };
 
 const parseConfig = (rawConfig) => {
   const result = evaluationConfigSchema.safeParse(rawConfig || {});
-
   if (!result.success) {
-    // A bad config must never crash an evaluation: fall back to generic rules only.
-    console.error("Invalid evaluation_config, using defaults:", result.error.issues);
     return evaluationConfigSchema.parse({});
   }
-
   return result.data;
 };
 
-/**
- * Pure function: no DB, no HTTP. Easy to unit test.
- */
-const evaluateArchitecture = ({ nodes = [], edges = [], config = {} }) => {
-  const normalizedNodes = normalizeNodes(nodes);
-  const normalizedEdges = normalizeEdges(edges);
-  const parsedConfig = parseConfig(config);
-
-  const componentCounts = normalizedNodes.reduce((acc, node) => {
-    acc[node.type] = (acc[node.type] || 0) + 1;
+const buildStats = (nodes, edges) => {
+  const componentCounts = nodes.reduce((acc, node) => {
+    const key = node.type || "unknown";
+    acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
 
-  const stats = {
-    nodeCount: normalizedNodes.length,
-    edgeCount: normalizedEdges.length,
+  return {
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
     componentCounts,
   };
+};
 
-  // Nothing to evaluate
+/**
+ * Pure/deterministic architecture evaluation against resolved rules & challenge config.
+ */
+const evaluateArchitecture = ({
+  nodes = [],
+  edges = [],
+  config = {},
+  resolvedRules = [],
+  challengeSnapshotConfig = null,
+}) => {
+  const { nodes: normalizedNodes, edges: normalizedEdges } =
+    normalizeArchitectureSnapshot({ nodes, edges });
+  const parsedConfig = parseConfig(challengeSnapshotConfig || config);
+  const stats = buildStats(normalizedNodes, normalizedEdges);
+
   if (normalizedNodes.length === 0) {
     const issues = [
       createIssue({
         ruleId: "EMPTY_DESIGN",
+        ruleKey: "EMPTY_DESIGN",
         severity: SEVERITY.ERROR,
         category: "structure",
         title: "The canvas is empty",
@@ -59,29 +63,57 @@ const evaluateArchitecture = ({ nodes = [], edges = [], config = {} }) => {
       }),
     ];
 
-    return buildResult(issues, stats);
+    return buildResult(issues, stats, []);
   }
 
   const graph = buildGraph(normalizedNodes, normalizedEdges);
+  const collectedIssues = [];
+  const appliedRulesMeta = [];
 
-  const issues = [
-    ...genericRules.flatMap((rule) => rule(graph)),
-    ...challengeRules.flatMap((rule) => rule(graph, parsedConfig)),
-  ];
+  for (const ruleItem of resolvedRules) {
+    if (!ruleItem || !ruleItem.rule_key) continue;
+    if (!hasRuleHandler(ruleItem.rule_key)) {
+      throw new AppError(
+        `Missing executable rule handler for '${ruleItem.rule_key}'`,
+        500
+      );
+    }
 
-  return buildResult(issues, stats);
+    const ruleContext = {
+      snapshot_config: parsedConfig,
+      ruleConfig: ruleItem.eval_params || ruleItem.config_snapshot || {},
+      ruleMeta: ruleItem,
+    };
+
+    const issuesFromRule = executeRule(ruleItem.rule_key, graph, ruleContext);
+    collectedIssues.push(...issuesFromRule);
+
+    appliedRulesMeta.push({
+      rule_id: ruleItem.rule_id || null,
+      rule_key: ruleItem.rule_key,
+      rule_version_id: ruleItem.rule_version_id || null,
+      rule_version_number: ruleItem.rule_version_number || null,
+      rule_type: ruleItem.rule_type || "generic",
+      is_mandatory: Boolean(ruleItem.is_mandatory),
+      issuesFound: issuesFromRule.length,
+    });
+  }
+
+  return buildResult(collectedIssues, stats, appliedRulesMeta);
 };
 
-const buildResult = (issues, stats) => {
+const buildResult = (issues, stats, appliedRules = []) => {
   const sorted = [...issues].sort(
     (a, b) =>
-      SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] ||
-      b.penalty - a.penalty
+      (SEVERITY_ORDER[a.severity] ?? 99) - (SEVERITY_ORDER[b.severity] ?? 99) ||
+      (b.penalty || 0) - (a.penalty || 0)
   );
 
   const score = calculateScore(sorted);
+  const passed = isPassingScore(score, sorted);
 
   const summary = {
+    critical: sorted.filter((i) => i.severity === SEVERITY.CRITICAL).length,
     errors: sorted.filter((i) => i.severity === SEVERITY.ERROR).length,
     warnings: sorted.filter((i) => i.severity === SEVERITY.WARNING).length,
     info: sorted.filter((i) => i.severity === SEVERITY.INFO).length,
@@ -90,34 +122,43 @@ const buildResult = (issues, stats) => {
   return {
     score,
     grade: getGrade(score),
-    passed: summary.errors === 0,
+    passed,
     summary,
     stats,
     issues: sorted,
+    appliedRules,
+    engineVersion: EVALUATION_ENGINE_VERSION,
     evaluatedAt: new Date().toISOString(),
   };
 };
 
 /**
- * Loads the user's saved project + its challenge rules and evaluates them.
+ * Evaluates a supplied snapshot (or fallback empty canvas) for an owned project
+ * without creating a saved attempt.
  */
-const evaluateProject = async (project_id, user_id) => {
+const evaluateProject = async (project_id, user_id, architectureInput = null) => {
   const project = await findProjectById(project_id, user_id);
-
   if (!project) {
     throw new AppError("Project not found", 404);
   }
 
-  const challenge = await findChallengeEvaluationConfig(project.challenge_id);
-
-  if (!challenge) {
-    throw new AppError("Challenge not found", 404);
+  let challengeSnapshotConfig = {};
+  if (project.project_mode === "challenge") {
+    const versionInfo = await findProjectChallengeVersion(project_id, user_id);
+    if (!versionInfo || !versionInfo.challenge_version_id) {
+      throw new AppError("Challenge version not found for project", 404);
+    }
+    challengeSnapshotConfig = versionInfo.snapshot_config || {};
   }
 
+  const resolvedRules = await resolveApplicableRulesForProject(project);
+  const snapshot = normalizeArchitectureSnapshot(architectureInput || { nodes: [], edges: [] });
+
   return evaluateArchitecture({
-    nodes: project.nodes,
-    edges: project.edges,
-    config: challenge.evaluation_config,
+    nodes: snapshot.nodes,
+    edges: snapshot.edges,
+    resolvedRules,
+    challengeSnapshotConfig,
   });
 };
 

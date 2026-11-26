@@ -1,36 +1,48 @@
 import api from "@/lib/api";
-import type { LoginResponse, RegisterResponse, User } from "@/types/auth";
 import type { ApiResponse } from "@/types/api";
+import type {
+  AuthResponseData,
+  LoginPayload,
+  RegisterPayload,
+  User,
+} from "@/types/auth";
 
-export interface RegisterData {
-  full_name: string;
-  email: string;
-  password: string;
-}
-
-export interface LoginData {
-  email: string;
-  password: string;
-}
+export type RegisterData = RegisterPayload;
+export type LoginData = LoginPayload;
 
 export const registerUser = async (
-  data: RegisterData
-): Promise<RegisterResponse> => {
-  const response = await api.post<RegisterResponse>("/auth/register", data);
-  return response.data;
+  payload: RegisterData
+): Promise<AuthResponseData> => {
+  // Never send role from client; backend enforces default 'user' role.
+  const sanitizedPayload: RegisterPayload = {
+    full_name: payload.full_name,
+    email: payload.email,
+    password: payload.password,
+    ...(payload.timezone ? { timezone: payload.timezone } : {}),
+  };
+
+  const { data } = await api.post<ApiResponse<AuthResponseData>>(
+    "/auth/register",
+    sanitizedPayload
+  );
+  return data.data;
 };
 
-export const loginUser = async (data: LoginData): Promise<LoginResponse> => {
-  const response = await api.post<LoginResponse>("/auth/login", data);
-  return response.data;
+export const loginUser = async (
+  payload: LoginData
+): Promise<AuthResponseData> => {
+  const { data } = await api.post<ApiResponse<AuthResponseData>>(
+    "/auth/login",
+    payload
+  );
+  return data.data;
 };
 
 export const getCurrentUser = async (): Promise<User> => {
-  const response = await api.get<ApiResponse<User>>("/auth/me");
-  return response.data.data;
+  const { data } = await api.get<ApiResponse<User>>("/auth/me");
+  return data.data;
 };
 
-export const logoutUser = async () => {
-  const response = await api.post("/auth/logout");
-  return response.data;
+export const logoutUser = async (): Promise<void> => {
+  await api.post("/auth/logout");
 };
