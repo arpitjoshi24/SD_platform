@@ -42,6 +42,20 @@ const getRuleVersions = async (rule_id) => {
 
 const getPracticeAvailableRules = async () => findPracticeAvailableGenericRules();
 
+const getProjectRuleSelectionsForUser = async (project_id, user_id) => {
+  const project = await findProjectById(project_id, user_id);
+  if (!project) {
+    throw new AppError("Project not found", 404);
+  }
+  if (project.project_mode !== "practice") {
+    throw new AppError(
+      "Rule selections are only applicable to practice projects",
+      400
+    );
+  }
+  return findProjectRuleSelections(project_id);
+};
+
 const createRuleRecord = async (payload, actorId = null) => {
   if (!hasRuleHandler(payload.rule_key)) {
     throw new AppError(
@@ -228,9 +242,6 @@ const setPracticeRuleSelections = async (project_id, user_id, selections = []) =
   });
 };
 
-/**
- * Resolves effective rules to execute + snapshot metadata for a project.
- */
 const resolveApplicableRulesForProject = async (project, client = null) => {
   const mandatoryRules = await findMandatoryRules(client);
   const resolvedMap = new Map();
@@ -319,6 +330,7 @@ module.exports = {
   getRuleByKey,
   getRuleVersions,
   getPracticeAvailableRules,
+  getProjectRuleSelectionsForUser,
   createRuleRecord,
   updateRuleRecord,
   createNewRuleVersion,

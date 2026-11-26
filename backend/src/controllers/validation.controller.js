@@ -4,9 +4,14 @@ const { successResponse } = require("../utils/response");
 // POST /projects/:id/evaluate
 const evaluate = async (req, res, next) => {
   try {
-    const architectureInput = req.body?.snapshot || {
-      nodes: req.body?.nodes || [],
-      edges: req.body?.edges || [],
+    const rawSnapshot =
+      req.body?.snapshot && typeof req.body.snapshot === "object"
+        ? req.body.snapshot
+        : req.body;
+
+    const architectureInput = {
+      nodes: Array.isArray(rawSnapshot?.nodes) ? rawSnapshot.nodes : [],
+      edges: Array.isArray(rawSnapshot?.edges) ? rawSnapshot.edges : [],
     };
 
     const result = await evaluateProject(

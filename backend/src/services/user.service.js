@@ -50,8 +50,7 @@ const getActivityHeatmap = async ({
   const profile = await getProfile(user_id);
   const tz = profile.timezone || DEFAULT_TIMEZONE;
 
-  const effectiveEnd =
-    end_date || formatDateInTimeZone(new Date(), tz);
+  const effectiveEnd = end_date || formatDateInTimeZone(new Date(), tz);
   const defaultStartObj = new Date(Date.now() - 364 * 24 * 60 * 60 * 1000);
   const effectiveStart =
     start_date || formatDateInTimeZone(defaultStartObj, tz);
@@ -66,7 +65,9 @@ const getActivityHeatmap = async ({
     end_date: effectiveEnd,
   });
 
-  const countByDate = new Map(rows.map((r) => [r.date, Number(r.count) || 0]));
+  const countByDate = new Map(
+    rows.map((r) => [r.date, Number(r.count) || 0])
+  );
   const calendar = [];
 
   const cursor = new Date(`${effectiveStart}T12:00:00Z`);

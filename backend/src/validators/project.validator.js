@@ -36,6 +36,13 @@ const architectureSnapshotSchema = z.object({
     .default([]),
 });
 
+const evaluatePayloadSchema = z.union([
+  architectureSnapshotSchema,
+  z.object({
+    snapshot: architectureSnapshotSchema,
+  }),
+]);
+
 const practiceRuleSelectionInputSchema = z.object({
   rule_id: uuidSchema,
   is_selected: z.boolean().default(true),
@@ -98,6 +105,7 @@ module.exports = {
   nodeSchema,
   edgeSchema,
   architectureSnapshotSchema,
+  evaluatePayloadSchema,
   practiceRuleSelectionInputSchema,
   createProjectSchema,
   updateProjectSchema,

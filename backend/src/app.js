@@ -20,7 +20,9 @@ if (process.env.TRUST_PROXY === "true" || process.env.NODE_ENV === "production")
 // Security & HTTP middlewares
 app.use(helmet());
 
-const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
+const allowedOrigins = (
+  process.env.CLIENT_URL || "http://localhost:3000,http://localhost:5173"
+)
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);

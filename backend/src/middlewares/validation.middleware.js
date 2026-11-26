@@ -32,7 +32,10 @@ const validate = (schemasOrBodySchema) => (req, res, next) => {
       for (const issue of parsed.error.issues || []) {
         collectedIssues.push({
           location: source,
-          field: issue.path.length > 0 ? `${source}.${issue.path.join(".")}` : source,
+          field:
+            issue.path.length > 0
+              ? `${source}.${issue.path.join(".")}`
+              : source,
           message: issue.message,
         });
       }

@@ -2,16 +2,30 @@ import type { AccountStatus, User, UserRole } from "./auth";
 import type { Challenge, ChallengeEvaluationConfig } from "./challenge";
 import type { RuleDefinition, RuleType } from "./rule";
 
+export interface AdminActivityItem {
+  id: string;
+  event_type: string;
+  summary: string;
+  actor_email?: string | null;
+  created_at: string;
+}
+
 export interface AdminDashboardStats {
   total_users: number;
   active_users: number;
   suspended_users: number;
   total_challenges: number;
   published_challenges: number;
-  archived_challenges: number;
+  archived_challenges?: number;
   total_rules: number;
+  active_rules?: number;
   total_projects: number;
+  guided_projects?: number;
+  practice_projects?: number;
   total_attempts: number;
+  passed_attempts?: number;
+  average_attempt_score?: number | null;
+  recent_activity?: AdminActivityItem[];
 }
 
 export interface AdminCreateChallengePayload {

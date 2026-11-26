@@ -32,6 +32,10 @@ const buildPoolConfig = () => {
     process.env.DB_IDLE_TIMEOUT_MS,
     30000
   );
+  const statementTimeoutMs = parsePositiveInt(
+    process.env.DB_STATEMENT_TIMEOUT_MS,
+    15000
+  );
 
   return {
     connectionString,
@@ -39,6 +43,7 @@ const buildPoolConfig = () => {
     max: maxConnections,
     connectionTimeoutMillis,
     idleTimeoutMillis,
+    statement_timeout: statementTimeoutMs,
   };
 };
 
@@ -47,6 +52,8 @@ const pool = new Pool(buildPoolConfig());
 pool.on("error", (err) => {
   console.error("Unexpected idle PostgreSQL client error:", err.message);
 });
+
+const query = (text, params = []) => pool.query(text, params);
 
 const connectDB = async () => {
   const client = await pool.connect();
@@ -87,6 +94,7 @@ const withTransaction = async (callback) => {
 
 module.exports = {
   pool,
+  query,
   connectDB,
   closeDB,
   withTransaction,

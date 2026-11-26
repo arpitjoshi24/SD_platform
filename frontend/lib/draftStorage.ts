@@ -1,7 +1,8 @@
 import type { Edge, Node } from "@xyflow/react";
-import { restoreGraph, serializeGraph } from "@/lib/graph";
+import { getGraphFingerprint, restoreGraph, serializeGraph } from "@/lib/graph";
 
 export interface LocalDraftRecord {
+  version: 1;
   projectId: string;
   userId?: string | null;
   nodes: Node[];
@@ -15,17 +16,25 @@ function buildDraftKey(projectId: string, userId?: string | null): string {
   return `${DRAFT_PREFIX}:${userId || "anon"}:${projectId}`;
 }
 
+function isValidIsoDate(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) return false;
+  return Number.isFinite(Date.parse(value));
+}
+
 export function loadLocalDraft(
   projectId: string,
   userId?: string | null
 ): LocalDraftRecord | null {
   if (typeof window === "undefined" || !projectId) return null;
 
+  const key = buildDraftKey(projectId, userId);
+
   try {
-    const raw = window.localStorage.getItem(buildDraftKey(projectId, userId));
+    const raw = window.localStorage.getItem(key);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as {
+      version?: unknown;
       projectId?: unknown;
       userId?: unknown;
       nodes?: unknown;
@@ -33,20 +42,34 @@ export function loadLocalDraft(
       savedAt?: unknown;
     };
 
-    if (!parsed || typeof parsed !== "object") return null;
+    if (!parsed || typeof parsed !== "object") {
+      clearLocalDraft(projectId, userId);
+      return null;
+    }
+
+    if (parsed.version !== undefined && parsed.version !== 1) {
+      clearLocalDraft(projectId, userId);
+      return null;
+    }
+
+    if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
+      clearLocalDraft(projectId, userId);
+      return null;
+    }
 
     const restored = restoreGraph(parsed.nodes, parsed.edges);
     return {
+      version: 1,
       projectId,
       userId: typeof parsed.userId === "string" ? parsed.userId : userId ?? null,
       nodes: restored.nodes,
       edges: restored.edges,
-      savedAt:
-        typeof parsed.savedAt === "string" && parsed.savedAt
-          ? parsed.savedAt
-          : new Date().toISOString(),
+      savedAt: isValidIsoDate(parsed.savedAt)
+        ? parsed.savedAt
+        : new Date().toISOString(),
     };
   } catch {
+    clearLocalDraft(projectId, userId);
     return null;
   }
 }
@@ -61,6 +84,7 @@ export function saveLocalDraft(
 
   const serialized = serializeGraph(nodes, edges);
   const record: LocalDraftRecord = {
+    version: 1,
     projectId,
     userId: userId ?? null,
     nodes: serialized.nodes as Node[],
@@ -90,4 +114,27 @@ export function clearLocalDraft(
   } catch {
     // Ignore storage errors
   }
+}
+
+export function isDraftNewerThanAttempt(
+  draft: LocalDraftRecord,
+  attemptSavedAt?: string | null,
+  attemptNodes?: unknown,
+  attemptEdges?: unknown
+): boolean {
+  const restoredAttempt = restoreGraph(attemptNodes ?? [], attemptEdges ?? []);
+  if (
+    getGraphFingerprint(draft.nodes, draft.edges) ===
+    getGraphFingerprint(restoredAttempt.nodes, restoredAttempt.edges)
+  ) {
+    return false;
+  }
+
+  if (!attemptSavedAt) return true;
+  const draftTime = Date.parse(draft.savedAt);
+  const attemptTime = Date.parse(attemptSavedAt);
+  if (!Number.isFinite(draftTime) || !Number.isFinite(attemptTime)) {
+    return true;
+  }
+  return draftTime > attemptTime;
 }

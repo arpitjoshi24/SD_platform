@@ -25,12 +25,14 @@ export interface ProjectAttempt {
   score: number | null;
   grade: string | null;
   passed: boolean | null;
-  summary: {
-    critical?: number;
-    errors: number;
-    warnings: number;
-    info: number;
-  } | Record<string, number>;
+  summary:
+    | {
+        critical?: number;
+        errors: number;
+        warnings: number;
+        info: number;
+      }
+    | Record<string, number>;
   issues: EvaluationIssue[];
   evaluation_engine_version: string | null;
   challenge_version_id: string | null;
@@ -56,7 +58,8 @@ export interface SaveAttemptPayload {
 }
 
 export interface AttemptListResponse {
-  attempts: ProjectAttempt[];
+  items?: ProjectAttempt[];
+  attempts?: ProjectAttempt[];
   total?: number;
   limit?: number;
   offset?: number;

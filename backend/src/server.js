@@ -7,6 +7,15 @@ const PORT = Number.parseInt(process.env.PORT || "5000", 10) || 5000;
 let server = null;
 let isShuttingDown = false;
 
+const validateEnv = () => {
+  if (!process.env.DATABASE_URL || !String(process.env.DATABASE_URL).trim()) {
+    throw new Error("DATABASE_URL is required");
+  }
+  if (!process.env.JWT_SECRET || String(process.env.JWT_SECRET).trim().length < 16) {
+    throw new Error("JWT_SECRET must be set and at least 16 characters long");
+  }
+};
+
 const shutdown = async (signal, exitCode = 0) => {
   if (isShuttingDown) return;
   isShuttingDown = true;
@@ -32,6 +41,7 @@ const shutdown = async (signal, exitCode = 0) => {
 
 const startServer = async () => {
   try {
+    validateEnv();
     await connectDB();
 
     server = app.listen(PORT, () => {
@@ -54,9 +64,16 @@ const startServer = async () => {
       shutdown("UNCAUGHT_EXCEPTION", 1);
     });
   } catch (err) {
-    console.error("Failed to start server:", err.message);
-    process.exit(1);
-  }
+  console.error("\n========== SERVER STARTUP FAILURE ==========");
+  console.error("Error object:", err);
+  console.error("Error name:", err?.name);
+  console.error("Error message:", err?.message);
+  console.error("Error code:", err?.code);
+  console.error("Error stack:", err?.stack);
+  console.error("============================================\n");
+
+  process.exit(1);
+}
 };
 
 startServer();

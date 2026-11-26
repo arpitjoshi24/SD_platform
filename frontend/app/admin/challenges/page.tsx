@@ -1,19 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Archive, GitBranch, Plus, RefreshCw } from "lucide-react";
+import { Archive, GitBranch, Plus, RefreshCw, RotateCcw } from "lucide-react";
 
 import {
   archiveAdminChallenge,
   createAdminChallenge,
-  createChallengeVersion,
+  createAdminChallengeVersion,
   getAdminChallenges,
+  restoreAdminChallenge,
 } from "@/services/admin.service";
 import { getErrorMessage } from "@/lib/errors";
 import type { Challenge } from "@/types/challenge";
 import DifficultyBadge from "@/components/ui/DifficultyBadge";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import Spinner from "@/components/ui/Spinner";
+
+function extractChallengesArray(res: unknown): Challenge[] {
+  if (Array.isArray(res)) return res;
+  if (res && typeof res === "object") {
+    const obj = res as {
+      items?: unknown;
+      challenges?: unknown;
+      data?: unknown;
+    };
+    if (Array.isArray(obj.items)) return obj.items as Challenge[];
+    if (Array.isArray(obj.challenges)) return obj.challenges as Challenge[];
+    if (Array.isArray(obj.data)) return obj.data as Challenge[];
+  }
+  return [];
+}
 
 export default function AdminChallengesPage() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -36,11 +52,13 @@ export default function AdminChallengesPage() {
 
   const loadList = () => {
     setLoading(true);
-    getAdminChallenges()
-      .then(setChallenges)
-      .catch((err) =>
-        setError(getErrorMessage(err, "Failed to load admin challenges."))
-      )
+    setError("");
+    getAdminChallenges({ include_archived: true })
+      .then((res) => setChallenges(extractChallengesArray(res)))
+      .catch((err) => {
+        setChallenges([]);
+        setError(getErrorMessage(err, "Failed to load admin challenges."));
+      })
       .finally(() => setLoading(false));
   };
 
@@ -82,7 +100,10 @@ export default function AdminChallengesPage() {
         is_published: true,
       });
 
-      setChallenges((prev) => [created, ...prev]);
+      setChallenges((prev) => [
+        created,
+        ...(Array.isArray(prev) ? prev : []),
+      ]);
       setTitle("");
       setSlug("");
       setDescription("");
@@ -100,16 +121,14 @@ export default function AdminChallengesPage() {
     setError("");
     setNotice("");
     try {
-      const updated = await createChallengeVersion(challenge.id, {
+      await createAdminChallengeVersion(challenge.id, {
         title: challenge.title,
         description: challenge.description,
         requirements: challenge.requirements ?? [],
         hints: challenge.hints ?? [],
         changelog: "Published new specification version from admin console.",
       });
-      setChallenges((prev) =>
-        prev.map((c) => (c.id === challenge.id ? updated : c))
-      );
+      await loadList();
       setNotice(`Published new version for "${challenge.title}".`);
     } catch (err) {
       setError(getErrorMessage(err, "Failed to publish new challenge version."));
@@ -120,18 +139,25 @@ export default function AdminChallengesPage() {
     setError("");
     setNotice("");
     try {
-      const nextArchived = !challenge.is_archived;
-      const updated = await archiveAdminChallenge(challenge.id, nextArchived);
+      const updated = challenge.is_archived
+        ? await restoreAdminChallenge(challenge.id)
+        : await archiveAdminChallenge(challenge.id);
       setChallenges((prev) =>
-        prev.map((c) => (c.id === challenge.id ? updated : c))
+        (Array.isArray(prev) ? prev : []).map((c) =>
+          c.id === challenge.id ? { ...c, ...updated } : c
+        )
       );
       setNotice(
-        `${nextArchived ? "Archived" : "Restored"} challenge "${challenge.title}".`
+        `${challenge.is_archived ? "Restored" : "Archived"} challenge "${
+          challenge.title
+        }".`
       );
     } catch (err) {
       setError(getErrorMessage(err, "Failed to update challenge archive status."));
     }
   };
+
+  const challengeList = Array.isArray(challenges) ? challenges : [];
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
@@ -260,7 +286,7 @@ export default function AdminChallengesPage() {
               rows={3}
               value={requirementsText}
               onChange={(e) => setRequirementsText(e.target.value)}
-              placeholder="Sub-10ms p99 check latency&#10;No single point of failure on API tier"
+              placeholder={"Sub-10ms p99 check latency\nNo single point of failure on API tier"}
               className="w-full rounded-[2px] border border-[#1e222b] bg-[#090a0d] px-3 py-2 font-mono text-xs text-gray-100 outline-none focus:border-cyan-400"
             />
           </div>
@@ -294,12 +320,12 @@ export default function AdminChallengesPage() {
             <div className="flex items-center gap-2 font-mono text-xs text-gray-400">
               <Spinner /> LOADING_CHALLENGES...
             </div>
-          ) : challenges.length === 0 ? (
+          ) : challengeList.length === 0 ? (
             <div className="rounded-[2px] border border-[#1e222b] bg-[#0e1015] p-8 text-center font-mono text-xs text-gray-500">
               No challenges found.
             </div>
           ) : (
-            challenges.map((ch) => {
+            challengeList.map((ch) => {
               const ver =
                 ch.current_version?.version_number ??
                 ch.current_version_number ??
@@ -338,8 +364,12 @@ export default function AdminChallengesPage() {
                         onClick={() => handleToggleArchive(ch)}
                         className="inline-flex items-center gap-1 rounded-[2px] border border-[#2e3442] bg-[#090a0d] px-2.5 py-1 font-mono text-[10px] uppercase text-gray-300 hover:border-rose-400/50 hover:text-rose-300"
                       >
-                        <Archive size={12} />
-                        <span>{ch.is_archived ? "Unarchive" : "Archive"}</span>
+                        {ch.is_archived ? (
+                          <RotateCcw size={12} />
+                        ) : (
+                          <Archive size={12} />
+                        )}
+                        <span>{ch.is_archived ? "Restore" : "Archive"}</span>
                       </button>
                     </div>
                   </div>

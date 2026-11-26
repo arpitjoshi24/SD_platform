@@ -56,7 +56,10 @@ const createChallengeSchema = z.object({
     .trim()
     .min(3)
     .max(200)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase hyphen-separated")
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      "Slug must be lowercase hyphen-separated"
+    )
     .optional(),
   description: z.string().trim().min(10).max(5000),
   difficulty: z.enum(["Easy", "Medium", "Hard"]),
@@ -76,7 +79,10 @@ const updateChallengeSchema = z.object({
     .trim()
     .min(3)
     .max(200)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase hyphen-separated")
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      "Slug must be lowercase hyphen-separated"
+    )
     .optional(),
   description: z.string().trim().min(10).max(5000).optional(),
   difficulty: z.enum(["Easy", "Medium", "Hard"]).optional(),

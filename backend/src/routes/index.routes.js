@@ -17,6 +17,6 @@ router.use("/attempts", attemptItemRouter); // GET/DELETE /attempts/:attemptId
 router.use("/rules", require("./rule.routes"));
 router.use("/admin", require("./admin.routes"));
 
-// Simulation and AI Mentor are deferred to the next phase; keep unmounted until implemented.
+// Simulation and AI Mentor are intentionally excluded/unmounted in this phase.
 
 module.exports = router;

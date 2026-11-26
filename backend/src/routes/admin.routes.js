@@ -3,16 +3,19 @@ const authMiddleware = require("../middlewares/auth.middleware");
 const { requireRole } = require("../middlewares/role.middleware");
 const validate = require("../middlewares/validation.middleware");
 const {
+  adminUserIdParamSchema,
+  adminChallengeIdParamSchema,
+  adminRuleIdParamSchema,
+  adminListQuerySchema,
+  updateUserStatusSchema,
   createChallengeSchema,
   updateChallengeSchema,
-  createChallengeVersionSchema,
   createRuleSchema,
   updateRuleSchema,
   createRuleVersionSchema,
-  updateUserStatusSchema,
-  adminListQuerySchema,
 } = require("../validators/admin.validator");
 const {
+  getDashboardStats,
   listAdminChallenges,
   createAdminChallenge,
   updateAdminChallenge,
@@ -36,6 +39,9 @@ const router = express.Router();
 // Every admin route requires a valid JWT and the 'admin' role.
 router.use(authMiddleware, requireRole("admin"));
 
+// Dashboard overview stats
+router.get("/dashboard/stats", getDashboardStats);
+
 // Challenges management & versioning
 router.get(
   "/challenges",
@@ -49,45 +55,66 @@ router.post(
 );
 router.put(
   "/challenges/:challengeId",
-  validate(updateChallengeSchema),
+  validate({ params: adminChallengeIdParamSchema, body: updateChallengeSchema }),
   updateAdminChallenge
 );
 router.post(
   "/challenges/:challengeId/versions",
-  validate(createChallengeVersionSchema),
+  validate({ params: adminChallengeIdParamSchema, body: updateChallengeSchema }),
   createAdminChallengeVersion
 );
-router.post("/challenges/:challengeId/archive", archiveAdminChallenge);
-router.post("/challenges/:challengeId/restore", restoreAdminChallenge);
+router.post(
+  "/challenges/:challengeId/archive",
+  validate({ params: adminChallengeIdParamSchema }),
+  archiveAdminChallenge
+);
+router.post(
+  "/challenges/:challengeId/restore",
+  validate({ params: adminChallengeIdParamSchema }),
+  restoreAdminChallenge
+);
 
 // Challenge analytics
 router.get(
   "/challenges/:challengeId/statistics",
+  validate({ params: adminChallengeIdParamSchema }),
   getAdminChallengeStatistics
 );
 router.get(
   "/challenges/:challengeId/participants",
-  validate({ query: adminListQuerySchema }),
+  validate({ params: adminChallengeIdParamSchema, query: adminListQuerySchema }),
   getAdminChallengeParticipants
 );
 
 // Rules catalog & versioning
 router.get("/rules", validate({ query: adminListQuerySchema }), listAdminRules);
 router.post("/rules", validate(createRuleSchema), createAdminRule);
-router.put("/rules/:ruleId", validate(updateRuleSchema), updateAdminRule);
+router.put(
+  "/rules/:ruleId",
+  validate({ params: adminRuleIdParamSchema, body: updateRuleSchema }),
+  updateAdminRule
+);
 router.post(
   "/rules/:ruleId/versions",
-  validate(createRuleVersionSchema),
+  validate({ params: adminRuleIdParamSchema, body: createRuleVersionSchema }),
   createAdminRuleVersion
 );
-router.get("/rules/:ruleId/versions", listAdminRuleVersions);
+router.get(
+  "/rules/:ruleId/versions",
+  validate({ params: adminRuleIdParamSchema }),
+  listAdminRuleVersions
+);
 
 // Users management
 router.get("/users", validate({ query: adminListQuerySchema }), listAdminUsers);
-router.get("/users/:userId", getAdminUserDetails);
+router.get(
+  "/users/:userId",
+  validate({ params: adminUserIdParamSchema }),
+  getAdminUserDetails
+);
 router.patch(
   "/users/:userId/status",
-  validate(updateUserStatusSchema),
+  validate({ params: adminUserIdParamSchema, body: updateUserStatusSchema }),
   updateAdminUserStatus
 );
 

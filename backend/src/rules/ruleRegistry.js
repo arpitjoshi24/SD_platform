@@ -2,19 +2,63 @@ const AppError = require("../utils/AppError");
 const { genericRuleHandlers } = require("./genericRules");
 const { challengeRuleHandlers } = require("./challengeRules");
 
+const EXPECTED_SEEDED_RULE_KEYS = Object.freeze([
+  "DANGLING_EDGE",
+  "SELF_LOOP",
+  "DUPLICATE_EDGE",
+  "ISOLATED_NODE",
+  "CYCLE",
+  "PASSIVE_COMPONENT_CALLING_OUT",
+  "LB_NO_BACKENDS",
+  "LB_WRONG_TARGET",
+  "LB_SINGLE_BACKEND",
+  "CACHE_UNUSED",
+  "QUEUE_NO_PRODUCER",
+  "QUEUE_NO_CONSUMER",
+  "DB_NOT_BEHIND_API",
+  "SINGLE_DATABASE",
+  "REQUIRED_COMPONENT_MISSING",
+  "RECOMMENDED_COMPONENT_MISSING",
+  "REQUIRED_CONNECTION_MISSING",
+  "RECOMMENDED_CONNECTION_MISSING",
+  "FORBIDDEN_CONNECTION",
+]);
+
 const registry = new Map();
 
-for (const [key, fn] of Object.entries(genericRuleHandlers || {})) {
-  if (typeof fn === "function") {
-    registry.set(key, fn);
+const registerEntries = (entries, sourceLabel) => {
+  for (const [key, fn] of Object.entries(entries || {})) {
+    const normalizedKey = String(key || "").trim();
+    if (!normalizedKey) continue;
+    if (typeof fn !== "function") {
+      throw new AppError(
+        `Invalid handler for rule_key '${normalizedKey}' in ${sourceLabel}`,
+        500
+      );
+    }
+    if (registry.has(normalizedKey)) {
+      throw new AppError(
+        `Duplicate rule handler registered for rule_key '${normalizedKey}'`,
+        500
+      );
+    }
+    registry.set(normalizedKey, fn);
   }
-}
+};
 
-for (const [key, fn] of Object.entries(challengeRuleHandlers || {})) {
-  if (typeof fn === "function") {
-    registry.set(key, fn);
+registerEntries(genericRuleHandlers, "genericRules");
+registerEntries(challengeRuleHandlers, "challengeRules");
+
+const validateRuleRegistry = () => {
+  const missing = EXPECTED_SEEDED_RULE_KEYS.filter((k) => !registry.has(k));
+  if (missing.length > 0) {
+    throw new AppError(
+      `Missing rule handlers in registry for keys: ${missing.join(", ")}`,
+      500
+    );
   }
-}
+  return true;
+};
 
 const hasRuleHandler = (ruleKey) => registry.has(String(ruleKey || "").trim());
 
@@ -45,6 +89,8 @@ const executeRule = (ruleKey, graph, context = {}) => {
 const getRegisteredRuleKeys = () => Array.from(registry.keys());
 
 module.exports = {
+  EXPECTED_SEEDED_RULE_KEYS,
+  validateRuleRegistry,
   hasRuleHandler,
   getRuleHandler,
   executeRule,

@@ -13,8 +13,22 @@ import Spinner from "@/components/ui/Spinner";
 const statusBadge: Record<AccountStatus, string> = {
   active: "border-emerald-500/40 bg-emerald-950/30 text-emerald-300",
   suspended: "border-rose-500/40 bg-rose-950/30 text-rose-300",
-  inactive: "border-amber-500/40 bg-amber-950/30 text-amber-300",
 };
+
+function extractUsersArray(res: unknown): AdminUserRecord[] {
+  if (Array.isArray(res)) return res as AdminUserRecord[];
+  if (res && typeof res === "object") {
+    const obj = res as {
+      users?: unknown;
+      items?: unknown;
+      data?: unknown;
+    };
+    if (Array.isArray(obj.users)) return obj.users as AdminUserRecord[];
+    if (Array.isArray(obj.items)) return obj.items as AdminUserRecord[];
+    if (Array.isArray(obj.data)) return obj.data as AdminUserRecord[];
+  }
+  return [];
+}
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
@@ -25,11 +39,13 @@ export default function AdminUsersPage() {
 
   const loadUsers = () => {
     setLoading(true);
+    setError("");
     getAdminUsers()
-      .then(setUsers)
-      .catch((err) =>
-        setError(getErrorMessage(err, "Failed to load user accounts."))
-      )
+      .then((res) => setUsers(extractUsersArray(res)))
+      .catch((err) => {
+        setUsers([]);
+        setError(getErrorMessage(err, "Failed to load user accounts."));
+      })
       .finally(() => setLoading(false));
   };
 
@@ -45,9 +61,13 @@ export default function AdminUsersPage() {
     setNotice("");
     setUpdatingId(userId);
     try {
-      const updated = await updateAdminUserStatus(userId, nextStatus);
+      const updated = await updateAdminUserStatus(userId, {
+        account_status: nextStatus,
+      });
       setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, ...updated } : u))
+        (Array.isArray(prev) ? prev : []).map((u) =>
+          u.id === userId ? { ...u, ...updated } : u
+        )
       );
       setNotice(`Updated ${updated.email} status to ${nextStatus}.`);
     } catch (err) {
@@ -56,6 +76,8 @@ export default function AdminUsersPage() {
       setUpdatingId(null);
     }
   };
+
+  const userList = Array.isArray(users) ? users : [];
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
@@ -95,8 +117,12 @@ export default function AdminUsersPage() {
           <div className="flex items-center justify-center gap-2 p-10 font-mono text-xs text-gray-400">
             <Spinner /> LOADING_USERS...
           </div>
+        ) : userList.length === 0 ? (
+          <div className="p-10 text-center font-mono text-xs text-gray-500">
+            No users found.
+          </div>
         ) : (
-          <table className="w-full text-left border-collapse">
+          <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-[#1e222b] bg-[#090a0d] font-mono text-[10px] uppercase tracking-wider text-gray-500">
                 <th className="px-4 py-3">User</th>
@@ -107,8 +133,9 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e222b] text-xs">
-              {users.map((u) => {
-                const st: AccountStatus = u.account_status ?? "active";
+              {userList.map((u) => {
+                const st: AccountStatus =
+                  u.account_status === "suspended" ? "suspended" : "active";
                 const busy = updatingId === u.id;
 
                 return (
@@ -136,7 +163,7 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3.5 font-mono text-[10px] uppercase">
                       <span
                         className={`rounded-[2px] border px-2 py-0.5 ${
-                          statusBadge[st] ?? statusBadge.active
+                          statusBadge[st]
                         }`}
                       >
                         {st}

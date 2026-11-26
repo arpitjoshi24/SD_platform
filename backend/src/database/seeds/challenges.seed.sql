@@ -1,5 +1,5 @@
 -- ArchMentor AI initial guided challenges.
--- Run after 001_initial_schema.sql and rules.seed.sql.
+-- Run after schema/migrations and rules.seed.sql.
 
 INSERT INTO challenges
 (
@@ -16,7 +16,6 @@ INSERT INTO challenges
     current_version_number
 )
 VALUES
-
 (
     'Design URL Shortener',
     'design-url-shortener',
@@ -39,7 +38,6 @@ VALUES
     FALSE,
     1
 ),
-
 (
     'Design a Notification Service',
     'design-notification-service',
@@ -62,7 +60,6 @@ VALUES
     FALSE,
     1
 ),
-
 (
     'Design a Rate Limiter',
     'design-rate-limiter',
@@ -84,15 +81,10 @@ VALUES
     FALSE,
     1
 )
-
 ON CONFLICT (slug) DO NOTHING;
-
-
--- Create version 1 snapshots for each challenge.
 
 WITH configs(slug, evaluation_config) AS (
     VALUES
-
     (
         'design-url-shortener',
         '{
@@ -144,7 +136,6 @@ WITH configs(slug, evaluation_config) AS (
             }
         }'::jsonb
     ),
-
     (
         'design-notification-service',
         '{
@@ -197,7 +188,6 @@ WITH configs(slug, evaluation_config) AS (
             }
         }'::jsonb
     ),
-
     (
         'design-rate-limiter',
         '{
@@ -239,7 +229,6 @@ WITH configs(slug, evaluation_config) AS (
         }'::jsonb
     )
 )
-
 INSERT INTO challenge_versions
 (
     challenge_id,
@@ -264,11 +253,6 @@ FROM challenges c
 JOIN configs ON configs.slug = c.slug
 ON CONFLICT (challenge_id, version_number) DO NOTHING;
 
-
--- Assign generic and challenge-specific rules to each challenge version.
--- All seeded generic rules are assigned to guided challenges.
--- Mandatory integrity rules remain mandatory.
-
 INSERT INTO challenge_rule_assignments
 (
     challenge_version_id,
@@ -290,6 +274,7 @@ JOIN rules r
     ON r.is_active = TRUE
 JOIN rule_versions rv
     ON rv.rule_id = r.id
+   AND rv.version_number = r.current_version_number
 WHERE cv.version_number = 1
 AND r.rule_key IN (
     'DANGLING_EDGE',
@@ -313,10 +298,6 @@ AND r.rule_key IN (
     'FORBIDDEN_CONNECTION'
 )
 ON CONFLICT (challenge_version_id, rule_id) DO NOTHING;
-
-
--- Freeze the exact rule assignments into the challenge version snapshot.
--- Normalized challenge_rule_assignments remain the operational source.
 
 UPDATE challenge_versions cv
 SET snapshot_config = jsonb_set(

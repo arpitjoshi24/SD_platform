@@ -25,25 +25,22 @@ const adminRuleIdParamSchema = z.object({
   ruleId: uuidSchema,
 });
 
-const adminUsersQuerySchema = z.object({
+const adminListQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
   role: z.enum(["user", "admin"]).optional(),
   account_status: z.enum(["active", "suspended"]).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  offset: z.coerce.number().int().min(0).default(0),
-});
-
-const adminChallengesQuerySchema = z.object({
-  includeArchived: z
-    .enum(["true", "false"])
-    .optional()
-    .transform((v) => (v === undefined ? true : v === "true")),
-  search: z.string().trim().max(200).optional(),
+  difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+  rule_type: z.enum(["generic", "challenge_specific"]).optional(),
+  category: z.string().trim().max(80).optional(),
+  include_archived: z.enum(["true", "false"]).optional(),
+  is_published: z.enum(["true", "false"]).optional(),
+  is_active: z.enum(["true", "false"]).optional(),
+  is_practice_available: z.enum(["true", "false"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-const updateUserAccountStatusSchema = z.object({
+const updateUserStatusSchema = z.object({
   account_status: z.enum(["active", "suspended"]),
   reason: z.string().trim().max(500).optional(),
 });
@@ -56,9 +53,8 @@ module.exports = {
   adminUserIdParamSchema,
   adminChallengeIdParamSchema,
   adminRuleIdParamSchema,
-  adminUsersQuerySchema,
-  adminChallengesQuerySchema,
-  updateUserAccountStatusSchema,
+  adminListQuerySchema,
+  updateUserStatusSchema,
   assignChallengeRulesSchema,
   createChallengeSchema,
   updateChallengeSchema,

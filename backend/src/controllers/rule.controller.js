@@ -3,6 +3,7 @@ const {
   getRuleById,
   getRuleVersions,
   getPracticeAvailableRules,
+  getProjectRuleSelectionsForUser,
   setPracticeRuleSelections,
 } = require("../services/rule.service");
 const { successResponse } = require("../utils/response");
@@ -61,6 +62,23 @@ const getRuleVersionHistory = async (req, res, next) => {
   }
 };
 
+// GET /rules/projects/:projectId/selections
+const getProjectPracticeSelections = async (req, res, next) => {
+  try {
+    const selections = await getProjectRuleSelectionsForUser(
+      req.params.projectId,
+      req.user.id
+    );
+    return successResponse(
+      res,
+      "Practice rule selections fetched successfully",
+      selections
+    );
+  } catch (err) {
+    return next(err);
+  }
+};
+
 // PUT /rules/projects/:projectId/selections
 const updateProjectPracticeSelections = async (req, res, next) => {
   try {
@@ -84,5 +102,6 @@ module.exports = {
   getPracticeRules,
   getRule,
   getRuleVersionHistory,
+  getProjectPracticeSelections,
   updateProjectPracticeSelections,
 };

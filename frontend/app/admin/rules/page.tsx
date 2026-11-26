@@ -5,12 +5,13 @@ import { GitBranch, Plus, RefreshCw } from "lucide-react";
 
 import {
   createAdminRule,
-  createRuleVersion,
+  createAdminRuleVersion,
   getAdminRules,
   updateAdminRule,
 } from "@/services/admin.service";
 import { getErrorMessage } from "@/lib/errors";
-import type { RuleDefinition } from "@/types/rule";
+import type { RuleDefinition, RuleType } from "@/types/rule";
+import type { IssueSeverity } from "@/types/evaluation";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import Spinner from "@/components/ui/Spinner";
 
@@ -23,12 +24,10 @@ export default function AdminRulesPage() {
   // Create Rule Form
   const [ruleKey, setRuleKey] = useState("");
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("Reliability");
-  const [severity, setSeverity] = useState<"critical" | "error" | "warning" | "info">(
-    "warning"
-  );
-  const [penalty, setPenalty] = useState(10);
-  const [isMandatory, setIsMandatory] = useState(false);
+  const [ruleType, setRuleType] = useState<RuleType>("generic");
+  const [category, setCategory] = useState("reliability");
+  const [severity, setSeverity] = useState<IssueSeverity>("warning");
+  const [isPracticeAvailable, setIsPracticeAvailable] = useState(true);
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -56,13 +55,14 @@ export default function AdminRulesPage() {
       const created = await createAdminRule({
         rule_key: ruleKey.trim().toUpperCase().replace(/\s+/g, "_"),
         name: name.trim(),
-        category: category.trim() || "Reliability",
+        rule_type: ruleType,
+        category: category.trim() || "reliability",
         severity,
-        penalty: Number(penalty) || 0,
-        is_mandatory: isMandatory,
+        is_mandatory: false,
         is_active: true,
+        is_practice_available: ruleType === "generic" ? isPracticeAvailable : false,
         description: description.trim(),
-        config_schema: {},
+        config: {},
       });
 
       setRules((prev) => [created, ...prev]);
@@ -81,14 +81,17 @@ export default function AdminRulesPage() {
     setError("");
     setNotice("");
     try {
-      const updated = await createRuleVersion(rule.id, {
+      const updated = await createAdminRuleVersion(rule.id, {
+        name: rule.name,
         severity: rule.severity,
-        penalty: rule.penalty,
+        category: rule.category,
         description: rule.description,
-        config_schema: rule.config_schema ?? {},
+        config: rule.current_config ?? {},
         changelog: "Published updated rule version from admin console.",
       });
-      setRules((prev) => prev.map((r) => (r.id === rule.id ? updated : r)));
+      setRules((prev) =>
+        prev.map((r) => (r.id === rule.id ? { ...r, ...updated } : r))
+      );
       setNotice(`Published new version for rule ${rule.rule_key}.`);
     } catch (err) {
       setError(getErrorMessage(err, "Failed to publish rule version."));
@@ -102,7 +105,9 @@ export default function AdminRulesPage() {
       const updated = await updateAdminRule(rule.id, {
         is_active: !rule.is_active,
       });
-      setRules((prev) => prev.map((r) => (r.id === rule.id ? updated : r)));
+      setRules((prev) =>
+        prev.map((r) => (r.id === rule.id ? { ...r, ...updated } : r))
+      );
       setNotice(
         `${updated.is_active ? "Activated" : "Deactivated"} rule ${rule.rule_key}.`
       );
@@ -122,8 +127,8 @@ export default function AdminRulesPage() {
             Manage Evaluation Rules
           </h1>
           <p className="mt-1 text-sm text-gray-400">
-            Configure architecture validation rules, penalties, mandatory flags,
-            and immutable rule versions.
+            Configure architecture validation rules, practice availability, and
+            immutable rule versions.
           </p>
         </div>
 
@@ -178,11 +183,7 @@ export default function AdminRulesPage() {
               </label>
               <select
                 value={severity}
-                onChange={(e) =>
-                  setSeverity(
-                    e.target.value as "critical" | "error" | "warning" | "info"
-                  )
-                }
+                onChange={(e) => setSeverity(e.target.value as IssueSeverity)}
                 className="w-full rounded-[2px] border border-[#1e222b] bg-[#090a0d] px-3 py-2 font-mono text-xs text-gray-100 outline-none focus:border-cyan-400"
               >
                 <option value="critical">critical</option>
@@ -210,28 +211,35 @@ export default function AdminRulesPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block font-mono text-[10px] uppercase text-gray-400">
-                Category
+                Rule Type
               </label>
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-[2px] border border-[#1e222b] bg-[#090a0d] px-3 py-2 text-xs text-gray-100 outline-none focus:border-cyan-400"
-              />
+              <select
+                value={ruleType}
+                onChange={(e) => setRuleType(e.target.value as RuleType)}
+                className="w-full rounded-[2px] border border-[#1e222b] bg-[#090a0d] px-3 py-2 font-mono text-xs text-gray-100 outline-none focus:border-cyan-400"
+              >
+                <option value="generic">generic</option>
+                <option value="challenge_specific">challenge_specific</option>
+              </select>
             </div>
 
             <div>
               <label className="mb-1 block font-mono text-[10px] uppercase text-gray-400">
-                Score Penalty
+                Category
               </label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={penalty}
-                onChange={(e) => setPenalty(Number(e.target.value))}
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-[2px] border border-[#1e222b] bg-[#090a0d] px-3 py-2 font-mono text-xs text-gray-100 outline-none focus:border-cyan-400"
-              />
+              >
+                <option value="structure">structure</option>
+                <option value="connection">connection</option>
+                <option value="performance">performance</option>
+                <option value="reliability">reliability</option>
+                <option value="requirement">requirement</option>
+                <option value="security">security</option>
+                <option value="data_integrity">data_integrity</option>
+              </select>
             </div>
           </div>
 
@@ -249,15 +257,17 @@ export default function AdminRulesPage() {
             />
           </div>
 
-          <label className="flex items-center gap-2 font-mono text-xs text-gray-300">
-            <input
-              type="checkbox"
-              checked={isMandatory}
-              onChange={(e) => setIsMandatory(e.target.checked)}
-              className="accent-cyan-400"
-            />
-            <span>MANDATORY_IN_PRACTICE_SANDBOXES</span>
-          </label>
+          {ruleType === "generic" && (
+            <label className="flex items-center gap-2 font-mono text-xs text-gray-300">
+              <input
+                type="checkbox"
+                checked={isPracticeAvailable}
+                onChange={(e) => setIsPracticeAvailable(e.target.checked)}
+                className="accent-cyan-400"
+              />
+              <span>AVAILABLE_IN_PRACTICE_SANDBOXES</span>
+            </label>
+          )}
 
           <button
             type="submit"
@@ -281,10 +291,7 @@ export default function AdminRulesPage() {
             </div>
           ) : (
             rules.map((rule) => {
-              const ver =
-                rule.current_version?.version_number ??
-                rule.current_version_number ??
-                1;
+              const ver = rule.current_version_number ?? 1;
 
               return (
                 <div
@@ -297,7 +304,7 @@ export default function AdminRulesPage() {
                         {rule.rule_key}
                       </span>
                       <span className="rounded-[2px] border border-[#2e3442] bg-[#14171f] px-2 py-0.5 text-gray-300">
-                        v{ver} • -{rule.penalty} PTS
+                        v{ver} • {rule.severity}
                       </span>
                       {rule.is_mandatory && (
                         <span className="rounded-[2px] border border-amber-500/40 bg-amber-950/30 px-2 py-0.5 text-amber-300">

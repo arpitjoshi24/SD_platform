@@ -2,14 +2,31 @@ const bcrypt = require("bcrypt");
 const AppError = require("../utils/AppError");
 const { generateToken } = require("../utils/jwt");
 const { normalizeEmail, isValidTimeZone } = require("../utils/helpers");
-const { ROLES, ACCOUNT_STATUSES, DEFAULT_TIMEZONE } = require("../utils/constants");
-const { toSafeUser } = require("../types/userTypes");
+const {
+  ROLES,
+  ACCOUNT_STATUSES,
+  DEFAULT_TIMEZONE,
+} = require("../utils/constants");
 const {
   findUserByEmail,
   findUserById,
   findUserByIdForAuth,
   createUser,
 } = require("../repositories/auth.repository");
+
+const formatSafeUser = (user) => {
+  if (!user) return null;
+  return {
+    id: user.id,
+    full_name: user.full_name,
+    email: user.email,
+    role: String(user.role || ROLES.USER).toLowerCase(),
+    account_status: String(user.account_status || ACCOUNT_STATUSES.ACTIVE).toLowerCase(),
+    timezone: user.timezone || DEFAULT_TIMEZONE,
+    created_at: user.created_at,
+    updated_at: user.updated_at,
+  };
+};
 
 const registerUser = async ({ full_name, email, password, timezone }) => {
   const normalizedEmail = normalizeEmail(email);
@@ -31,7 +48,7 @@ const registerUser = async ({ full_name, email, password, timezone }) => {
       role: ROLES.USER,
       timezone: safeTimezone,
     });
-    return toSafeUser(created);
+    return formatSafeUser(created);
   } catch (err) {
     if (err?.code === "23505") {
       throw new AppError("An account with this email already exists", 409);
@@ -54,7 +71,9 @@ const loginUser = async ({ email, password }) => {
     throw invalid;
   }
 
-  const status = String(user.account_status || ACCOUNT_STATUSES.ACTIVE).toLowerCase();
+  const status = String(
+    user.account_status || ACCOUNT_STATUSES.ACTIVE
+  ).toLowerCase();
   if (status === ACCOUNT_STATUSES.SUSPENDED) {
     throw new AppError("Your account has been suspended. Contact support.", 403);
   }
@@ -63,7 +82,7 @@ const loginUser = async ({ email, password }) => {
     throw new AppError("Account is not active", 403);
   }
 
-  const safeUser = toSafeUser(user);
+  const safeUser = formatSafeUser(user);
   const token = generateToken({
     id: safeUser.id,
     email: safeUser.email,
@@ -82,13 +101,15 @@ const getUserById = async (id) => {
     throw new AppError("User no longer exists", 401);
   }
 
-  const status = String(user.account_status || ACCOUNT_STATUSES.ACTIVE).toLowerCase();
+  const status = String(
+    user.account_status || ACCOUNT_STATUSES.ACTIVE
+  ).toLowerCase();
   if (status === ACCOUNT_STATUSES.SUSPENDED) {
     throw new AppError("Your account has been suspended. Contact support.", 403);
   }
 
   const fullSafe = await findUserById(id);
-  return toSafeUser(fullSafe || user);
+  return formatSafeUser(fullSafe || user);
 };
 
 module.exports = {

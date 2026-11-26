@@ -17,9 +17,6 @@ INSERT INTO rules
     current_version_number
 )
 VALUES
-
--- Generic rules
-
 (
     'DANGLING_EDGE',
     'Dangling connection',
@@ -27,10 +24,9 @@ VALUES
     'generic',
     'data_integrity',
     'error',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     TRUE, TRUE, FALSE, 1
 ),
-
 (
     'SELF_LOOP',
     'Self connection',
@@ -38,10 +34,9 @@ VALUES
     'generic',
     'data_integrity',
     'error',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     TRUE, TRUE, FALSE, 1
 ),
-
 (
     'DUPLICATE_EDGE',
     'Duplicate connection',
@@ -49,10 +44,9 @@ VALUES
     'generic',
     'connection',
     'warning',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
 (
     'ISOLATED_NODE',
     'Isolated component',
@@ -60,10 +54,9 @@ VALUES
     'generic',
     'structure',
     'warning',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
 (
     'CYCLE',
     'Circular dependency',
@@ -71,10 +64,9 @@ VALUES
     'generic',
     'structure',
     'warning',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
 (
     'PASSIVE_COMPONENT_CALLING_OUT',
     'Passive component initiates request',
@@ -82,10 +74,9 @@ VALUES
     'generic',
     'connection',
     'error',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
 (
     'LB_NO_BACKENDS',
     'Load balancer without backends',
@@ -93,10 +84,9 @@ VALUES
     'generic',
     'connection',
     'error',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
 (
     'LB_WRONG_TARGET',
     'Load balancer wrong target',
@@ -104,10 +94,9 @@ VALUES
     'generic',
     'connection',
     'warning',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
 (
     'LB_SINGLE_BACKEND',
     'Load balancer single backend',
@@ -115,10 +104,9 @@ VALUES
     'generic',
     'reliability',
     'warning',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
 (
     'CACHE_UNUSED',
     'Unused cache',
@@ -126,10 +114,9 @@ VALUES
     'generic',
     'performance',
     'warning',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
 (
     'QUEUE_NO_PRODUCER',
     'Queue without producer',
@@ -137,10 +124,9 @@ VALUES
     'generic',
     'structure',
     'warning',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
 (
     'QUEUE_NO_CONSUMER',
     'Queue without consumer',
@@ -148,10 +134,9 @@ VALUES
     'generic',
     'structure',
     'warning',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
 (
     'DB_NOT_BEHIND_API',
     'Database not behind API',
@@ -159,10 +144,9 @@ VALUES
     'generic',
     'structure',
     'warning',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
 (
     'SINGLE_DATABASE',
     'Single database instance',
@@ -170,12 +154,9 @@ VALUES
     'generic',
     'reliability',
     'info',
-    '{"scope":"all"}',
+    '{"scope":"all"}'::jsonb,
     FALSE, TRUE, TRUE, 1
 ),
-
--- Challenge-specific rules
-
 (
     'REQUIRED_COMPONENT_MISSING',
     'Required component missing',
@@ -183,10 +164,9 @@ VALUES
     'challenge_specific',
     'requirement',
     'error',
-    '{"scope":"guided_challenges"}',
+    '{"scope":"guided_challenges"}'::jsonb,
     FALSE, TRUE, FALSE, 1
 ),
-
 (
     'RECOMMENDED_COMPONENT_MISSING',
     'Recommended component missing',
@@ -194,10 +174,9 @@ VALUES
     'challenge_specific',
     'performance',
     'warning',
-    '{"scope":"guided_challenges"}',
+    '{"scope":"guided_challenges"}'::jsonb,
     FALSE, TRUE, FALSE, 1
 ),
-
 (
     'REQUIRED_CONNECTION_MISSING',
     'Required connection missing',
@@ -205,10 +184,9 @@ VALUES
     'challenge_specific',
     'requirement',
     'error',
-    '{"scope":"guided_challenges"}',
+    '{"scope":"guided_challenges"}'::jsonb,
     FALSE, TRUE, FALSE, 1
 ),
-
 (
     'RECOMMENDED_CONNECTION_MISSING',
     'Recommended connection missing',
@@ -216,10 +194,9 @@ VALUES
     'challenge_specific',
     'performance',
     'warning',
-    '{"scope":"guided_challenges"}',
+    '{"scope":"guided_challenges"}'::jsonb,
     FALSE, TRUE, FALSE, 1
 ),
-
 (
     'FORBIDDEN_CONNECTION',
     'Forbidden connection present',
@@ -227,14 +204,10 @@ VALUES
     'challenge_specific',
     'connection',
     'error',
-    '{"scope":"guided_challenges"}',
+    '{"scope":"guided_challenges"}'::jsonb,
     FALSE, TRUE, FALSE, 1
 )
-
 ON CONFLICT (rule_key) DO NOTHING;
-
-
--- Create version 1 for every seeded rule.
 
 INSERT INTO rule_versions
 (

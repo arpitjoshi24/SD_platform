@@ -14,7 +14,6 @@ const isZodError = (err) =>
 const errorHandler = (err, req, res, next) => {
   const requestId = req.requestId || req.headers["x-request-id"] || null;
 
-  // Zod validation errors
   if (isZodError(err)) {
     const details = err.issues.map((issue) => ({
       field: issue.path.join("."),
@@ -25,7 +24,6 @@ const errorHandler = (err, req, res, next) => {
     return errorResponse(res, message, 400, details);
   }
 
-  // Express JSON body parser errors
   if (err.type === "entity.parse.failed") {
     return errorResponse(res, "Invalid JSON in request body", 400);
   }
@@ -34,7 +32,6 @@ const errorHandler = (err, req, res, next) => {
     return errorResponse(res, "Request payload exceeds size limit", 413);
   }
 
-  // Rate-limiter errors
   if (err.statusCode === 429 || err.status === 429) {
     return errorResponse(
       res,
@@ -43,7 +40,6 @@ const errorHandler = (err, req, res, next) => {
     );
   }
 
-  // JWT errors
   if (err.name === "TokenExpiredError") {
     return errorResponse(res, "Session expired. Please login again.", 401);
   }
@@ -52,44 +48,45 @@ const errorHandler = (err, req, res, next) => {
     return errorResponse(res, "Invalid or malformed token", 401);
   }
 
-  // PostgreSQL error mapping (never leak internal SQL or constraint details)
   switch (err.code) {
-    case "22P02": // invalid_text_representation (e.g., invalid UUID)
+    case "22P02":
       return errorResponse(res, "Invalid identifier format", 400);
-    case "22007": // invalid_datetime_format
-    case "22008": // datetime_field_overflow
+    case "22007":
+    case "22008":
       return errorResponse(res, "Invalid date or timestamp value", 400);
-    case "23502": // not_null_violation
+    case "23502":
       return errorResponse(res, "Required field is missing", 400);
-    case "23503": // foreign_key_violation
+    case "23503":
       return errorResponse(res, "Referenced resource does not exist", 400);
-    case "23505": // unique_violation
-      return errorResponse(res, "Resource already exists or conflicts with an existing record", 409);
-    case "23514": // check_violation
+    case "23505":
+      return errorResponse(
+        res,
+        "Resource already exists or conflicts with an existing record",
+        409
+      );
+    case "23514":
       return errorResponse(res, "Data violates domain or state constraints", 400);
-    case "40001": // serialization_failure
-    case "40P01": // deadlock_detected
+    case "40001":
+    case "40P01":
       return errorResponse(
         res,
         "Concurrent operation conflict. Please retry your request.",
         409
       );
-    case "53300": // too_many_connections
-    case "57P01": // admin_shutdown
-    case "57P02": // crash_shutdown
-    case "57P03": // cannot_connect_now
+    case "53300":
+    case "57P01":
+    case "57P02":
+    case "57P03":
       console.error("DATABASE AVAILABILITY ERROR:", { requestId, code: err.code });
       return errorResponse(res, "Service temporarily unavailable", 503);
     default:
       break;
   }
 
-  // Expected operational application errors
   if (err instanceof AppError) {
     return errorResponse(res, err.message, err.statusCode, err.details);
   }
 
-  // Unexpected error: log safely without leaking internals
   console.error("UNHANDLED ERROR:", {
     requestId,
     method: req.method,

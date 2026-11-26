@@ -1,6 +1,7 @@
-const jwt = require("jsonwebtoken");
 const AppError = require("../utils/AppError");
+const { verifyToken } = require("../utils/jwt");
 const { findUserByIdForAuth } = require("../repositories/auth.repository");
+const { ACCOUNT_STATUSES, ROLES, DEFAULT_TIMEZONE } = require("../utils/constants");
 
 /**
  * Auth strategy (single source of truth):
@@ -17,7 +18,11 @@ const extractToken = (req) => {
     }
 
     const parts = trimmed.split(/\s+/);
-    if (parts.length !== 2 || parts[0].toLowerCase() !== "bearer" || !parts[1]) {
+    if (
+      parts.length !== 2 ||
+      parts[0].toLowerCase() !== "bearer" ||
+      !parts[1]
+    ) {
       throw new AppError("Invalid authorization format", 401);
     }
 
@@ -39,11 +44,7 @@ const authMiddleware = async (req, res, next) => {
       throw new AppError("Unauthorized. Please login.", 401);
     }
 
-    if (!process.env.JWT_SECRET) {
-      throw new AppError("Authentication configuration error", 500);
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyToken(token);
     const userId = decoded?.id || decoded?.sub;
 
     if (!decoded || typeof decoded !== "object" || !userId) {
@@ -55,12 +56,12 @@ const authMiddleware = async (req, res, next) => {
       throw new AppError("User account no longer exists", 401);
     }
 
-    const status = String(dbUser.account_status || "active").toLowerCase();
-    if (status === "suspended") {
+    const status = String(dbUser.account_status || ACCOUNT_STATUSES.ACTIVE).toLowerCase();
+    if (status === ACCOUNT_STATUSES.SUSPENDED) {
       throw new AppError("Your account has been suspended. Contact support.", 403);
     }
 
-    if (status !== "active") {
+    if (status !== ACCOUNT_STATUSES.ACTIVE) {
       throw new AppError("Account is not active", 403);
     }
 
@@ -68,9 +69,9 @@ const authMiddleware = async (req, res, next) => {
       id: dbUser.id,
       email: dbUser.email,
       full_name: dbUser.full_name,
-      role: String(dbUser.role || "user").toLowerCase(),
+      role: String(dbUser.role || ROLES.USER).toLowerCase(),
       account_status: status,
-      timezone: dbUser.timezone || "Asia/Kolkata",
+      timezone: dbUser.timezone || DEFAULT_TIMEZONE,
     };
 
     return next();

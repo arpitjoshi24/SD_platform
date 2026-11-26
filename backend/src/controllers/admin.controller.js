@@ -1,6 +1,8 @@
 const AppError = require("../utils/AppError");
 const { successResponse } = require("../utils/response");
+const { ACCOUNT_STATUSES } = require("../utils/constants");
 const { toSafeUser } = require("../types/userTypes");
+const { getAdminDashboardStatistics } = require("../services/admin.service");
 const {
   createChallengeWithVersion,
   updateChallengeAndCreateVersion,
@@ -18,10 +20,25 @@ const {
   getRuleVersions,
 } = require("../services/rule.service");
 const {
-  findAllUsersForAdmin,
-  getUserProfileById,
-  updateUserAccountStatusById,
-} = require("../repositories/user.repository");
+  listUsers,
+  findUserById,
+  updateAccountStatus,
+} = require("../repositories/auth.repository");
+
+// --- Dashboard ---
+
+const getDashboardStats = async (req, res, next) => {
+  try {
+    const stats = await getAdminDashboardStatistics();
+    return successResponse(
+      res,
+      "Admin dashboard statistics fetched successfully",
+      stats
+    );
+  } catch (err) {
+    return next(err);
+  }
+};
 
 // --- Challenges ---
 
@@ -29,7 +46,7 @@ const listAdminChallenges = async (req, res, next) => {
   try {
     const query = req.validatedQuery || req.query || {};
     const challenges = await findAllChallengesForAdmin({
-      include_archived:
+      includeArchived:
         query.include_archived === true || query.include_archived === "true",
       is_published:
         query.is_published !== undefined
@@ -37,6 +54,8 @@ const listAdminChallenges = async (req, res, next) => {
           : null,
       difficulty: query.difficulty || null,
       search: query.search || null,
+      limit: query.limit ?? 50,
+      offset: query.offset ?? 0,
     });
     return successResponse(
       res,
@@ -204,7 +223,7 @@ const listAdminRuleVersions = async (req, res, next) => {
 const listAdminUsers = async (req, res, next) => {
   try {
     const query = req.validatedQuery || req.query || {};
-    const users = await findAllUsersForAdmin({
+    const users = await listUsers({
       role: query.role || null,
       account_status: query.account_status || null,
       search: query.search || null,
@@ -215,7 +234,9 @@ const listAdminUsers = async (req, res, next) => {
       ? users.map(toSafeUser)
       : {
           ...users,
-          items: Array.isArray(users?.items) ? users.items.map(toSafeUser) : [],
+          items: Array.isArray(users?.items)
+            ? users.items.map(toSafeUser)
+            : [],
         };
     return successResponse(res, "Users fetched successfully", safeUsers);
   } catch (err) {
@@ -226,11 +247,15 @@ const listAdminUsers = async (req, res, next) => {
 const getAdminUserDetails = async (req, res, next) => {
   try {
     const userId = req.params.userId || req.params.id;
-    const user = await getUserProfileById(userId);
+    const user = await findUserById(userId);
     if (!user) {
       throw new AppError("User not found", 404);
     }
-    return successResponse(res, "User details fetched successfully", toSafeUser(user));
+    return successResponse(
+      res,
+      "User details fetched successfully",
+      toSafeUser(user)
+    );
   } catch (err) {
     return next(err);
   }
@@ -241,11 +266,14 @@ const updateAdminUserStatus = async (req, res, next) => {
     const userId = req.params.userId || req.params.id;
     const { account_status } = req.body;
 
-    if (userId === req.user.id && account_status !== "active") {
-      throw new AppError("Admins cannot suspend or deactivate their own account", 400);
+    if (userId === req.user.id && account_status !== ACCOUNT_STATUSES.ACTIVE) {
+      throw new AppError(
+        "Admins cannot suspend or deactivate their own account",
+        400
+      );
     }
 
-    const updated = await updateUserAccountStatusById({
+    const updated = await updateAccountStatus({
       user_id: userId,
       account_status,
     });
@@ -284,11 +312,7 @@ const getAdminChallengeStatistics = async (req, res, next) => {
 const getAdminChallengeParticipants = async (req, res, next) => {
   try {
     const challengeId = req.params.challengeId || req.params.id;
-    const query = req.validatedQuery || req.query || {};
-    const participants = await findChallengeParticipants(challengeId, {
-      limit: query.limit ?? 50,
-      offset: query.offset ?? 0,
-    });
+    const participants = await findChallengeParticipants(challengeId);
     if (!participants) {
       throw new AppError("Challenge not found", 404);
     }
@@ -303,6 +327,7 @@ const getAdminChallengeParticipants = async (req, res, next) => {
 };
 
 module.exports = {
+  getDashboardStats,
   listAdminChallenges,
   createAdminChallenge,
   updateAdminChallenge,

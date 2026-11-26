@@ -7,7 +7,10 @@ const { evaluationConfigSchema } = require("../validators/challenge.validator");
 const { buildGraph } = require("../rules/graph");
 const { createIssue } = require("../rules/issue");
 const { executeRule, hasRuleHandler } = require("../rules/ruleRegistry");
-const { findProjectById, findProjectChallengeVersion } = require("../repositories/project.repository");
+const {
+  findProjectById,
+  findProjectChallengeVersion,
+} = require("../repositories/project.repository");
 const { resolveApplicableRulesForProject } = require("./rule.service");
 
 const SEVERITY_ORDER = { critical: -1, error: 0, warning: 1, info: 2 };
@@ -34,9 +37,6 @@ const buildStats = (nodes, edges) => {
   };
 };
 
-/**
- * Pure/deterministic architecture evaluation against resolved rules & challenge config.
- */
 const evaluateArchitecture = ({
   nodes = [],
   edges = [],
@@ -58,7 +58,8 @@ const evaluateArchitecture = ({
         category: "structure",
         title: "The canvas is empty",
         message: "Add components and connect them before evaluating.",
-        suggestion: "Start with the components listed in the challenge requirements.",
+        suggestion:
+          "Start with the components listed in the challenge requirements.",
         penalty: 100,
       }),
     ];
@@ -111,6 +112,7 @@ const buildResult = (issues, stats, appliedRules = []) => {
 
   const score = calculateScore(sorted);
   const passed = isPassingScore(score, sorted);
+  const evaluatedAt = new Date().toISOString();
 
   const summary = {
     critical: sorted.filter((i) => i.severity === SEVERITY.CRITICAL).length,
@@ -128,15 +130,17 @@ const buildResult = (issues, stats, appliedRules = []) => {
     issues: sorted,
     appliedRules,
     engineVersion: EVALUATION_ENGINE_VERSION,
-    evaluatedAt: new Date().toISOString(),
+    engine_version: EVALUATION_ENGINE_VERSION,
+    evaluatedAt,
+    evaluated_at: evaluatedAt,
   };
 };
 
-/**
- * Evaluates a supplied snapshot (or fallback empty canvas) for an owned project
- * without creating a saved attempt.
- */
-const evaluateProject = async (project_id, user_id, architectureInput = null) => {
+const evaluateProject = async (
+  project_id,
+  user_id,
+  architectureInput = null
+) => {
   const project = await findProjectById(project_id, user_id);
   if (!project) {
     throw new AppError("Project not found", 404);
@@ -152,7 +156,9 @@ const evaluateProject = async (project_id, user_id, architectureInput = null) =>
   }
 
   const resolvedRules = await resolveApplicableRulesForProject(project);
-  const snapshot = normalizeArchitectureSnapshot(architectureInput || { nodes: [], edges: [] });
+  const snapshot = normalizeArchitectureSnapshot(
+    architectureInput || { nodes: [], edges: [] }
+  );
 
   return evaluateArchitecture({
     nodes: snapshot.nodes,

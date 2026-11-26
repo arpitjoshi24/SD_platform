@@ -1,4 +1,5 @@
 const AppError = require("../utils/AppError");
+const { ACCOUNT_STATUSES } = require("../utils/constants");
 
 const requireRole = (...allowedRoles) => {
   const normalizedAllowed = allowedRoles
@@ -11,12 +12,12 @@ const requireRole = (...allowedRoles) => {
       return next(new AppError("Unauthorized. Please login.", 401));
     }
 
-    const status = String(req.user.account_status || "active").toLowerCase();
-    if (status === "suspended") {
+    const status = String(req.user.account_status || ACCOUNT_STATUSES.ACTIVE).toLowerCase();
+    if (status === ACCOUNT_STATUSES.SUSPENDED) {
       return next(new AppError("Your account has been suspended.", 403));
     }
 
-    if (status !== "active") {
+    if (status !== ACCOUNT_STATUSES.ACTIVE) {
       return next(new AppError("Account is not active.", 403));
     }
 

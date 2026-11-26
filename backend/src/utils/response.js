@@ -1,4 +1,10 @@
-const successResponse = (res, message, data = {}, statusCode = 200, meta = undefined) => {
+const successResponse = (
+  res,
+  message,
+  data = {},
+  statusCode = 200,
+  meta = undefined
+) => {
   const body = {
     success: true,
     message,

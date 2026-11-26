@@ -20,7 +20,9 @@ const getChallenges = async (req, res, next) => {
 // GET /challenges/:idOrSlug
 const getChallenge = async (req, res, next) => {
   try {
-    const idOrSlug = String(req.params.id || req.params.idOrSlug || "").trim();
+    const idOrSlug = String(
+      req.params.id || req.params.idOrSlug || ""
+    ).trim();
     const challenge = isValidUuid(idOrSlug)
       ? await getChallengeById(idOrSlug)
       : await getChallengeBySlug(idOrSlug);

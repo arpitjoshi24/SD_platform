@@ -37,7 +37,10 @@ const isValidTimeZone = (tz) => {
   }
 };
 
-const formatDateInTimeZone = (dateInput = new Date(), timeZone = "Asia/Kolkata") => {
+const formatDateInTimeZone = (
+  dateInput = new Date(),
+  timeZone = "Asia/Kolkata"
+) => {
   const safeTz = isValidTimeZone(timeZone) ? timeZone.trim() : "Asia/Kolkata";
   const dateObj = dateInput instanceof Date ? dateInput : new Date(dateInput);
   if (Number.isNaN(dateObj.getTime())) {

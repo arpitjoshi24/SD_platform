@@ -1,4 +1,5 @@
 const { pool } = require("../config/db");
+const { ROLES, DEFAULT_TIMEZONE } = require("../utils/constants");
 
 const SAFE_USER_COLUMNS = `
   id,
@@ -60,11 +61,17 @@ const findUserByIdForAuth = async (id, client = null) => {
 };
 
 const createUser = async (
-  { full_name, email, password_hash, role = "user", timezone = "Asia/Kolkata" },
+  {
+    full_name,
+    email,
+    password_hash,
+    role = ROLES.USER,
+    timezone = DEFAULT_TIMEZONE,
+  },
   client = null
 ) => {
   const executor = client || pool;
-  const normalizedRole = role === "admin" ? "admin" : "user";
+  const normalizedRole = role === ROLES.ADMIN ? ROLES.ADMIN : ROLES.USER;
   const result = await executor.query(
     `INSERT INTO users (full_name, email, password_hash, role, timezone)
      VALUES ($1, $2, $3, $4, $5)
@@ -92,7 +99,10 @@ const updateUserProfile = async (
   return result.rows[0] || null;
 };
 
-const updateAccountStatus = async ({ user_id, account_status }, client = null) => {
+const updateAccountStatus = async (
+  { user_id, account_status },
+  client = null
+) => {
   const executor = client || pool;
   const result = await executor.query(
     `UPDATE users
@@ -107,7 +117,13 @@ const updateAccountStatus = async ({ user_id, account_status }, client = null) =
 };
 
 const listUsers = async (
-  { search = null, role = null, account_status = null, limit = 20, offset = 0 },
+  {
+    search = null,
+    role = null,
+    account_status = null,
+    limit = 20,
+    offset = 0,
+  },
   client = null
 ) => {
   const executor = client || pool;

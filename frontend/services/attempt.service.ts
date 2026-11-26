@@ -21,15 +21,14 @@ export const getProjectAttempts = async (
   projectId: string,
   params?: { limit?: number; offset?: number }
 ): Promise<ProjectAttempt[]> => {
-  const { data } = await api.get<ApiResponse<ProjectAttempt[] | AttemptListResponse>>(
-    `/projects/${projectId}/attempts`,
-    { params }
-  );
+  const { data } = await api.get<
+    ApiResponse<ProjectAttempt[] | AttemptListResponse>
+  >(`/projects/${projectId}/attempts`, { params });
 
   if (Array.isArray(data.data)) {
     return data.data;
   }
-  return data.data?.attempts ?? [];
+  return data.data?.items ?? data.data?.attempts ?? [];
 };
 
 export const getAttemptById = async (
