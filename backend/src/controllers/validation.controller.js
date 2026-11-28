@@ -2,16 +2,28 @@ const { evaluateProject } = require("../services/validation.service");
 const { successResponse } = require("../utils/response");
 
 // POST /projects/:id/evaluate
+
 const evaluate = async (req, res, next) => {
   try {
-    const rawSnapshot =
-      req.body?.snapshot && typeof req.body.snapshot === "object"
-        ? req.body.snapshot
-        : req.body;
+    // Support both accepted payload formats:
+    // { snapshot: { nodes, edges } }
+    // { nodes, edges }
+
+    const rawSnapshot = req.body?.snapshot ?? req.body;
+
+    if (
+      !rawSnapshot ||
+      !Array.isArray(rawSnapshot.nodes) ||
+      !Array.isArray(rawSnapshot.edges)
+    ) {
+      const error = new Error("Invalid architecture snapshot");
+      error.statusCode = 400;
+      throw error;
+    }
 
     const architectureInput = {
-      nodes: Array.isArray(rawSnapshot?.nodes) ? rawSnapshot.nodes : [],
-      edges: Array.isArray(rawSnapshot?.edges) ? rawSnapshot.edges : [],
+      nodes: rawSnapshot.nodes,
+      edges: rawSnapshot.edges,
     };
 
     const result = await evaluateProject(
@@ -20,7 +32,11 @@ const evaluate = async (req, res, next) => {
       architectureInput
     );
 
-    return successResponse(res, "Architecture evaluated successfully", result);
+    return successResponse(
+      res,
+      "Architecture evaluated successfully",
+      result
+    );
   } catch (err) {
     return next(err);
   }

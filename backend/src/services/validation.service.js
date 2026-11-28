@@ -17,9 +17,16 @@ const SEVERITY_ORDER = { critical: -1, error: 0, warning: 1, info: 2 };
 
 const parseConfig = (rawConfig) => {
   const result = evaluationConfigSchema.safeParse(rawConfig || {});
+
   if (!result.success) {
-    return evaluationConfigSchema.parse({});
+    throw new AppError(
+      `Invalid challenge evaluation configuration: ${JSON.stringify(
+        result.error.issues
+      )}`,
+      500
+    );
   }
+
   return result.data;
 };
 
@@ -147,13 +154,19 @@ const evaluateProject = async (
   }
 
   let challengeSnapshotConfig = {};
-  if (project.project_mode === "challenge") {
-    const versionInfo = await findProjectChallengeVersion(project_id, user_id);
-    if (!versionInfo || !versionInfo.challenge_version_id) {
-      throw new AppError("Challenge version not found for project", 404);
-    }
-    challengeSnapshotConfig = versionInfo.snapshot_config || {};
+
+if (project.project_mode === "challenge") {
+  const versionInfo = await findProjectChallengeVersion(project_id, user_id);
+
+  if (!versionInfo || !versionInfo.challenge_version_id) {
+    throw new AppError("Challenge version not found for project", 404);
   }
+
+  const snapshotConfig = versionInfo.snapshot_config || {};
+
+  challengeSnapshotConfig =
+    snapshotConfig.evaluation_config || snapshotConfig;
+}
 
   const resolvedRules = await resolveApplicableRulesForProject(project);
   const snapshot = normalizeArchitectureSnapshot(

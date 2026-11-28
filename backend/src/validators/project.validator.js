@@ -30,17 +30,33 @@ const architectureSnapshotSchema = z.object({
     .array(nodeSchema)
     .max(MAX_NODES, `A design can have at most ${MAX_NODES} components`)
     .default([]),
+
   edges: z
     .array(edgeSchema)
     .max(MAX_EDGES, `A design can have at most ${MAX_EDGES} connections`)
     .default([]),
 });
 
-const evaluatePayloadSchema = z.union([
-  architectureSnapshotSchema,
-  z.object({
+// Accept both frontend payload formats:
+// 1. { snapshot: { nodes: [], edges: [] } }
+// 2. { nodes: [], edges: [] }
+//
+// IMPORTANT:
+// The nested format must come first because architectureSnapshotSchema
+// has defaults for nodes and edges. Otherwise, it can accept the wrapper
+// object, strip "snapshot", and silently produce an empty architecture.
+
+const nestedEvaluatePayloadSchema = z
+  .object({
     snapshot: architectureSnapshotSchema,
-  }),
+  })
+  .strict();
+
+const flatEvaluatePayloadSchema = architectureSnapshotSchema.strict();
+
+const evaluatePayloadSchema = z.union([
+  nestedEvaluatePayloadSchema,
+  flatEvaluatePayloadSchema,
 ]);
 
 const practiceRuleSelectionInputSchema = z.object({
@@ -53,12 +69,14 @@ const createProjectSchema = z
   .object({
     project_mode: z.enum(["challenge", "practice"]).default("challenge"),
     challenge_id: uuidSchema.nullable().optional(),
+
     title: z
       .string()
       .trim()
       .min(2, "Project title must be at least 2 characters")
       .max(180, "Project title is too long")
       .optional(),
+
     selected_rules: z.array(practiceRuleSelectionInputSchema).optional(),
   })
   .superRefine((data, ctx) => {
@@ -69,6 +87,7 @@ const createProjectSchema = z
         message: "challenge_id is required when project_mode is 'challenge'",
       });
     }
+
     if (data.project_mode === "practice" && data.challenge_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -76,6 +95,7 @@ const createProjectSchema = z
         message: "Practice projects cannot be associated with a challenge_id",
       });
     }
+
     if (
       data.project_mode === "challenge" &&
       Array.isArray(data.selected_rules) &&
@@ -96,6 +116,7 @@ const updateProjectSchema = z.object({
     .min(2, "Project title must be at least 2 characters")
     .max(180, "Project title is too long")
     .optional(),
+
   status: z.enum(["in_progress", "completed", "archived"]).optional(),
 });
 
